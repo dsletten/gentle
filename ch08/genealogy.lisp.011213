@@ -1,0 +1,200 @@
+;#!/usr/local/bin/clisp
+;;;    Hey, Emacs, this is a -*- Mode: Lisp; Syntax: Common-Lisp -*- file!
+;;;
+;;;   NAME:               genealogy.lisp
+;;;
+;;;   STARTED:            Thu Dec 13 23:06:59 2001
+;;;   MODIFICATIONS:
+;;;
+;;;   PURPOSE:
+;;;
+;;;
+;;;
+;;;   CALLING SEQUENCE:
+;;;
+;;;
+;;;   INPUTS:
+;;;
+;;;   OUTPUTS:
+;;;
+;;;   EXAMPLE:
+;;;
+;;;   NOTES:
+;;;
+;;;
+(load "/home/httpd/cgi-bin/utils.lisp")
+
+(defconstant family '((colin nil nil)
+		      (deirdre nil nil)
+		      (arthur nil nil)
+		      (kate nil nil)
+		      (frank nil nil)
+		      (linda nil nil)
+		      (suzanne colin deirdre)
+		      (bruce arthur kate)
+		      (charles arthur kate)
+		      (david arthur kate)
+		      (ellen arthur kate)
+		      (george frank linda)
+		      (hillary frank linda)
+		      (andre nil nil)
+		      (tamara bruce suzanne)
+		      (vincent bruce suzanne)
+		      (wanda nil nil)
+		      (ivan george ellen)
+		      (julie george ellen)
+		      (marie george ellen)
+		      (nigel andre hillary)
+		      (frederick nil tamara)
+		      (zelda vincent wanda)
+		      (joshua ivan wanda)
+		      (quentin nil nil)
+		      (robert quentin julie)
+		      (olivia nigel marie)
+		      (peter nigel marie)
+		      (erica nil nil)
+		      (yvette robert zelda)
+		      (diane peter erica)))
+
+(defun father (person)
+  (cond ((null person) nil)
+	(t (second (assoc person family)))) )
+
+(test 'father '(((robert) quentin)
+		((olivia) nigel)
+		((wanda) nil)))
+
+(defun mother (person)
+  (cond ((null person) nil)
+	(t (third (assoc person family)))) )
+
+(test 'mother '(((vincent) suzanne)
+		((ellen) kate)
+		((deirdre) nil)))
+
+; (defun parents (person)
+;   (cond ((null person) nil)
+; 	(t (remove nil (list (father person)
+; 			     (mother person)))) ) )
+
+(defun parents (person)
+  (cond ((null person) nil)
+	(t (let ((mother (mother person))
+		 (father (father person)))
+	     (if father
+		 (cons father (if mother
+				  (list mother)
+				  nil))
+		 (if mother
+		     (list mother)
+		     nil))) )) )
+
+(test 'parents '(((zelda) (vincent wanda))
+		 ((nigel) (andre hillary))
+		 ((suzanne) (colin deirdre))
+		 ((frederick) (tamara))))
+
+;;;
+;;;    Can't use FAMILY as a lambda list parameter. Can't create even a local
+;;;    binding for a constant variable.
+;;; 
+(defun children (person)
+  "Find all of the children belonging to a given person."
+  (labels ((children-aux (person f)
+	     (cond ((null f) nil)
+		   (t (multiple-value-bind (child pop mom) (values-list (car f))
+			(if (or (equal person pop)
+				(equal person mom))
+			    (cons child (children-aux person (cdr f)))
+			    (children-aux person (cdr f)))) )) ))
+    (cond ((null person) nil)
+	  (t (children-aux person family)))) )
+
+;;;
+;;;    Another way...
+;;;    
+; (defun children (person)
+;   (labels ((children-aux (person f)
+; 	     (cond ((null f) nil)
+; 		   (t (multiple-value-bind (child pop mom) (values-list (car f))
+; 			(if (or (equal person (father child)) ;OR (member parent (parents person))
+; 				(equal person (mother child)))
+; 			    (cons child (children-aux person (cdr f)))
+; 			    (children-aux person (cdr f)))) )) ))
+;     (cond ((null person) nil)
+; 	  (t (children-aux person family)))) )
+
+(test 'children '(((bruce) (tamara vincent))
+		  ((marie) (olivia peter))
+		  ((arthur) (bruce charles david ellen))))
+
+(defun siblings (person)
+  (let ((parents))
+    (labels ((find-siblings (person f)
+	       (cond ((null f) nil)
+		     (t (multiple-value-bind (child pop mom) (values-list (car f))
+			  (cond ((equal child person)
+				 (find-siblings person (cdr f)))
+				((or (member pop parents)
+				     (member mom parents))
+				 (cons child (find-siblings person (cdr f))))
+				(t (find-siblings person (cdr f)))) ))) ))
+      (cond ((null person) nil)
+	    (t (setf parents (parents person))
+	       (find-siblings person family)))) ) )
+
+;;;
+;;;    Another way.
+;;;    
+; (defun siblings (person)
+;   (remove person (remove-duplicates (union (children (father person))
+; 					   (children (mother person)))) ) )
+
+;;;
+;;;    The function F should output lists.
+;;;    
+(defun mapunion (f l)
+  (reduce #'union (mapcar f l)) )
+
+(defun grandparents (person)
+  (mapunion #'parents (parents person)) )
+
+(defun cousins (person)
+  (mapunion #'children (mapunion #'siblings (parents person))) )
+
+;;;
+;;;    Bottom up.
+;;;    
+(defun descended-from (descendant ancestor)
+  (cond ((null descendant) nil)
+	((member ancestor (parents descendant)) t)
+	(t (or (descended-from (father descendant) ancestor)
+	       (descended-from (mother descendant) ancestor)))) )
+
+;;;
+;;;    Top down.
+;;;    This one is trickier since a person only has two parents but may have
+;;;    multiple children.
+;;;    
+(defun descended-from (descendant ancestor)
+  (cond ((null ancestor) nil)
+	((member descendant (children ancestor)) t)
+	(t (descended-from-list descendant (children ancestor)))) )
+
+(defun descended-from-list (descendant ancestors)
+  (cond ((null ancestors) nil)
+	(t (or (descended-from descendant (car ancestors))
+	       (descended-from-list descendant (cdr ancestors)))) ) )
+
+
+(defun ancestors (person)
+  (cond ((null person) nil)
+	(t (append (parents person)
+		   (union (ancestors (father person)) ;Must have UNION here to weed out duplicates.
+			  (ancestors (mother person)))) )) )
+
+(defun generation-gap (descendant ancestor)
+  (cond ((not (descended-from descendant ancestor)) nil)
+	((member ancestor (parents descendant)) 1)
+	(t (1+ (or (generation-gap (father descendant) ancestor)
+		   (generation-gap (mother descendant) ancestor)))) ) )

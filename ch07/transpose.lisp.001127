@@ -1,0 +1,97 @@
+;#!/usr/local/bin/clisp
+
+;;
+;   NAME:               transpose.lsp
+;
+;   STARTED:            001127
+;   MODIFICATIONS:
+;
+;   PURPOSE:
+;
+;
+;
+;   CALLING SEQUENCE:
+;
+;
+;   INPUTS:
+;
+;   OUTPUTS:
+;
+;   EXAMPLE:
+;
+;   NOTES:
+;
+;;
+
+; (defconstant note-table '((c        1)
+; 			  (c-sharp  2)
+; 			  (d        3)
+; 			  (d-sharp  4)
+; 			  (e        5)
+; 			  (f        6)
+; 			  (f-sharp  7)
+; 			  (g        8)
+; 			  (g-sharp  9)
+; 			  (a       10)
+; 			  (a-sharp 11)
+; 			  (b       12)))
+
+(setf note-table '((c 1)
+		   (c-sharp 2)
+		   (d 3)
+		   (d-sharp 4)
+		   (e 5)
+		   (f 6)
+		   (f-sharp 7)
+		   (g 8)
+		   (g-sharp 9)
+		   (a 10)
+		   (a-sharp 11)
+		   (b 12)))
+
+(defun numbers (l)
+  "Convert list of notes to corresponding numbers."
+  (mapcar #'(lambda (note)
+	      (second (assoc note note-table)))
+	  l) )
+
+; (defun notes (l)
+;   (mapcar #'(lambda (num)
+; 	       (car (find-if #'(lambda (pair)
+; 			    (equal num (cadr pair)))
+; 			note-table)))
+; 	   l) )
+
+(defun notes (l)
+  "Convert list of numbers to corresponding notes."
+  (mapcar #'(lambda (num)
+	      (second (assoc num (mapcar #'reverse note-table))))
+	  l) )
+
+(defun raise (n l)
+  "Raise a list of numbers by n half steps."
+  (mapcar #'(lambda (x) 
+	      (+ x n))
+	  l) )
+
+
+; (defun normalize (l)
+;   (mapcar #'(lambda (x)
+; 	      (if (> x 12)
+; 		  (- x 12)
+; 		  (if (< x 1)
+; 		      (+ x 12)
+; 		      x))
+; 	  l) )
+
+(defun normalize (l)
+  "Drops or raises values by an octave as necessary."
+  (mapcar #'(lambda (n)
+	      (cond ((> n 12) (- n 12))
+		    ((< n 1) (+ n 12))
+		    (t n)))
+	  l) )
+
+(defun transpose (n song)
+  "Transpose a song by n half steps"
+  (notes (normalize (raise n (numbers song)))) )

@@ -1,0 +1,68 @@
+;#!/usr/local/bin/clisp
+
+;;
+;   NAME:               craps.lsp
+;
+;   STARTED:            001106
+;   MODIFICATIONS:
+;
+;   PURPOSE:
+;
+;
+;
+;   CALLING SEQUENCE:
+;
+;
+;   INPUTS:
+;
+;   OUTPUTS:
+;
+;   EXAMPLE:
+;
+;   NOTES:
+;
+;;
+(defun throw-die ()
+  "Simulate the toss of a 6-sided die."
+  (+ (random 6) 1) )
+
+(defun throw-dice ()
+  "Return a list representing two die throws."
+  (list (throw-die) (throw-die)) )
+
+(defun snake-eyes-p (toss)
+  "Check whether a toss is double 1's."
+  (equal toss '(1 1)) )
+
+(defun boxcars-p (toss)
+  "Check whether a toss is double 6's."
+  (equal toss '(6 6)) )
+
+(defun instant-win-p (toss)
+  "Check whether first toss wins."
+  (or (= (+ (first toss) (second toss)) 7)
+      (= (+ (first toss) (second toss)) 11)) )
+
+(defun instant-loss-p (toss)
+  "Check whether first toss loses."
+  (or (snake-eyes-p toss)
+      (boxcars-p toss)
+      (= (+ (first toss) (second toss)) 3)) )
+
+(defun say-throw (toss)
+  "Evaluate toss of dice."
+  (cond ((snake-eyes-p toss) 'snake-eyes)
+	((boxcars-p toss) 'boxcars)
+	(t (+ (first toss) (second toss)))) )
+
+(defun craps ()
+  (let* ((dice-toss (throw-dice))
+	 (die-1 (first dice-toss))
+	 (die-2 (second dice-toss)))
+    (list 'throw die-1 'and die-2 
+	  '-- 
+	  (cond ((instant-loss-p dice-toss) (list (say-throw dice-toss)
+					     '-- 'you 'lose))
+		((instant-win-p dice-toss) (list (say-throw dice-toss)
+					    '-- 'you 'win))
+		(t (list 'your 'point 'is (say-throw dice-toss)))))) )
