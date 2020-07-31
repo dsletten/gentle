@@ -27,6 +27,7 @@
 ;;;;
 ;;;;
 ;(load "/home/slytobias/lisp/packages/test.lisp")
+;(load "/Users/dsletten/lisp/packages/lang.lisp")
 (load "/Users/dsletten/lisp/packages/collections.lisp")
 (load "/Users/dsletten/lisp/packages/test.lisp")
 
@@ -209,14 +210,14 @@
 ;;;
 ;;;    6.35
 ;;;    
-(defvar *nerd-states* '((sleeping eating)
-                        (eating waiting-for-a-computer)
-                        (waiting-for-a-computer programming)
-                        (programming debugging)
-                        (debugging sleeping)))
+(defvar *nerd-table* '((sleeping eating)
+                       (eating waiting-for-a-computer)
+                       (waiting-for-a-computer programming)
+                       (programming debugging)
+                       (debugging sleeping)))
 
 (defun nerdus (state)
-  (second (assoc state *nerd-states*)))
+  (second (assoc state *nerd-table*)))
 
 (deftest test-nerdus ()
   (check
@@ -247,11 +248,167 @@
    (eq (nerd-on-caffeine 'programming) 'sleeping)
    (eq (nerd-on-caffeine 'debugging) 'eating)))
 
-(defvar *nerd-cycle* (collections:make-circular-list '(sleeping eating waiting-for-a-computer programming debugging)))
+(defconstant nerd-states '(sleeping eating waiting-for-a-computer programming debugging))
+(defvar *nerd-cycle* (collections:make-circular-list nerd-states))
 
-;; (defun nerdus (state)
-;;   (do ((terminal (first *nerd-cycle*))
-;;        (states *nerd-cycle* (rest states)))
-;;       ((eq state (first states)) (second states))
-;;     (when (
+;;;
+;;;    Have to detect cycle for STATE that doesn't match!
+;;;    
+(defun nerdus (state)
+  (do ((terminal (first *nerd-cycle*))
+       (states (rest *nerd-cycle*) (rest states)))
+      ((eq state (first states)) (second states))
+    (when (eq terminal (first states))
+      (return))))
 
+;;;
+;;;    Fix this in :lang!!
+;;;    
+(defmacro defchain (var vals)
+  (let ((chain (mapcar #'(lambda (key val) (list key (list 'quote val))) vals (append (rest vals) (list (first vals)))) ))
+    `(case ,var ,@chain)))
+
+(defun nerdus (state)
+  (defchain state (sleeping eating waiting-for-a-computer programming debugging)))
+
+;;;
+;;;    6.36
+;;;    
+(defun swap-first-last (l)
+  (labels ((swap (first reversed)
+             (cons (first reversed) (reverse (cons first (rest reversed)))) ))
+    (destructuring-bind (first . rest) l
+      (cond ((null rest) l)
+            (t (swap first (reverse rest)))) )))
+
+(defun swap-first-last (l)
+  (labels ((swap (first rest result)
+             (cond ((null rest) (cons (first result) (nreverse (cons first (rest result)))) )
+                   (t (swap first (rest rest) (cons (first rest) result)))) ))
+    (destructuring-bind (first . rest) l
+      (cond ((null rest) l)
+            (t (swap first rest '()))) )))
+
+(deftest test-swap-first-last ()
+  (check
+   (equal (swap-first-last '(a)) '(a))
+   (equal (swap-first-last '(a b)) '(b a))
+   (equal (swap-first-last '(you cant buy love)) '(love cant buy you))))
+
+;;;
+;;;    6.37
+;;;    
+(defun rotate-left (l)
+  (cond ((null l) '())
+        ((null (rest l)) l)
+        (t (append (rest l) (list (first l))))) )
+
+(defun rotate-left (l)
+  (labels ((rotate (first l result)
+             (cond ((null l) (nreverse (cons first result)))
+                   (t (rotate first (rest l) (cons (first l) result)))) ))
+    (cond ((null l) '())
+          ((null (rest l)) l)
+          (t (rotate (first l) (rest l) '()))) ))
+
+(defun rotate-left (l)
+  (labels ((rotate (first l)
+             (cond ((null l) (list first))
+                   (t (cons (first l) (rotate first (rest l)))) )))
+    (cond ((null l) '())
+          ((null (rest l)) l)
+          (t (rotate (first l) (rest l)))) ))
+
+(defun rotate-left (l)
+  (cond ((null l) '())
+        ((null (rest l)) l)
+        (t (loop for cons on l
+                 collect (if (null (rest cons)) (first l) (second cons)))) ))
+
+(deftest test-rotate-left ()
+  (check
+   (equal (rotate-left '()) '())
+   (equal (rotate-left '(a)) '(a))
+   (equal (rotate-left '(a b)) '(b a))
+   (equal (rotate-left (rotate-left (rotate-left #1='(a b c)))) #1#)
+   (equal (rotate-left '(a b c d e)) '(b c d e a))))
+
+(defun rotate-right (l)
+  (cond ((null l) '())
+        ((null (rest l)) l)
+        (t (append (last l) (butlast l)))) )
+
+;;;
+;;;    Touretzky (Fails for empty list)
+;;;    
+;; (defun rotate-right (l)
+;;   (let ((reversed (reverse l)))
+;;     (cons (first reversed) (reverse (rest reversed)))) )
+
+(defun rotate-right (l)
+  (cond ((null l) '())
+        ((null (rest l)) l)
+        (t (loop for cons on l
+                 until (null (rest cons))
+                 collect (first cons) into elts
+                 finally (return (cons (first cons) elts)))) ))
+
+;;;
+;;;    Interesting juggling!
+;;;    
+(defun rotate-right (l)
+  (labels ((rotate (previous l result)
+             (cond ((null l) (cons previous (nreverse result)))
+                   (t (rotate (first l) (rest l) (cons previous result)))) ))
+    (cond ((null l) '())
+          ((null (rest l)) l)
+          (t (rotate (first l) (rest l) '()))) ))
+
+(deftest test-rotate-right ()
+  (check
+   (equal (rotate-right '()) '())
+   (equal (rotate-right '(a)) '(a))
+   (equal (rotate-right '(a b)) '(b a))
+   (equal (rotate-right (rotate-right (rotate-right #1='(a b c)))) #1#)
+   (equal (rotate-right '(a b c d e)) '(e a b c d))))
+
+;;;
+;;;    6.40
+;;;    
+;; ((a (a b c d))
+;;  (b (b c d))
+;;  (c (c d))
+;;  (d (d)))
+;;;
+;;;    Touretzky
+;;;    
+;;;    His solution is odd. Evidently he intends for ASSOC to be used solely. This is
+;;;    not how ASSOC is normally employed--the function returns an entry related to
+;;;    the given key and then CDR or SECOND is used to extract the value from the entry.
+;;;    
+(defun touretzky-assoc (key)
+  (assoc key '((a b c d)
+               (b c d)
+               (c d)
+               (d))))
+
+(defun my-assoc (key)
+  (cdr (assoc key '((a . (a b c d))
+                    (b . (b c d))
+                    (c . (c d))
+                    (d . (d)))) ))
+
+(defun member->assoc (l)
+  (loop for elt in l
+        for cons on l
+        collect (list elt cons)))
+
+;(deftest test-member->assoc ()
+  ;; (check
+  ;;  (equal (member->assoc '(a b c d)) '((A (A B C D)) (B (B C D)) (C (C D)) (D (D)))) ))
+
+(defun test-member->assoc ()
+  (let* ((l '(a b c d))
+         (table (member->assoc l)))
+    (dolist (elt l)
+      (assert (equal (member elt l) (second (assoc elt table)))) )))
