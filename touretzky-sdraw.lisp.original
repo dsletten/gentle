@@ -23,21 +23,26 @@
 ;;;;
 ;;;;   Example:
 ;;;;
-;;;;   Notes:
+;;;;   Notes: Extracted from the PDF file for the book. This is from 1989.
 ;;;;
 ;;;;
-(load "/home/slytobias/lisp/packages/test.lisp")
 
-(defpackage :touretzky-sdraw (:use :common-lisp :test))
+(defpackage :touretzky-sdraw (:use :common-lisp))
 
 (in-package :touretzky-sdraw)
 
-(in-package "SDRAW")
+;;;    Package must exist before IN-PACKAGE!
+;(in-package "SDRAW")
 
-(export ’(sdraw::sdraw sdraw::sdraw-loop sdraw::scrawl)) 
+;;;    Weird quote char in PDF file...
+;(export ’(touretzky-sdraw::sdraw touretzky-sdraw::sdraw-loop touretzky-sdraw::scrawl)) 
+(export '(touretzky-sdraw::sdraw touretzky-sdraw::sdraw-loop touretzky-sdraw::scrawl)) 
 
-(shadowing-import ’(sdraw::sdraw sdraw::sdraw-loop sdraw::scrawl)
-                   (find-package "USER"))
+;(shadowing-import ’(touretzky-sdraw::sdraw touretzky-sdraw::sdraw-loop touretzky-sdraw::scrawl)
+;                   (find-package "USER"))
+
+(shadowing-import '(touretzky-sdraw::sdraw touretzky-sdraw::sdraw-loop touretzky-sdraw::scrawl)
+                   (find-package "CL-USER"))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; 
 ;;;
@@ -77,7 +82,7 @@
 (defun struct1 (obj row root-col obj-memory) 
   (cond ((atom obj)
          (struct-process-atom (format nil "~S" obj) row root-col)) 
-        ((member obj obj-memory :test #’eq)
+        ((member obj obj-memory :test #'eq)
          (struct-process-circ row root-col))
         ((>= row *sdraw-vertical-cutoff*)
          (struct-process-etc row root-col))
@@ -89,7 +94,7 @@
          (end-col (+ start-col (length atom-string)))) 
     (cond ((< end-col *sdraw-horizontal-atom-cutoff*)
            (struct-record-position row end-col)
-           (list ’atom row start-col atom-string))
+           (list 'atom row start-col atom-string))
           (t (struct-process-etc row root-col)))))
 
 (defun struct-process-etc (row root-col)
@@ -97,14 +102,14 @@
     (struct-record-position 
      row
      (+ start-col (length *etc-string*) *etc-spacing*))
-    (list ’msg row start-col *etc-string*)))
+    (list 'msg row start-col *etc-string*)))
 
 (defun struct-process-circ (row root-col)
   (let ((start-col (struct-find-start row root-col)))
     (struct-record-position 
      row
      (+ start-col (length *circ-string*) *circ-spacing*))
-    (list ’msg row start-col *circ-string*)))
+    (list 'msg row start-col *circ-string*)))
  
 (defun struct-process-cons (obj row root-col obj-memory)
   (let* ((cons-start (struct-find-start row root-col))
@@ -115,7 +120,7 @@
          (start-col (third car-structure)))
     (if (>= start-col *sdraw-horizontal-cons-cutoff*)
         (struct-process-etc row root-col)
-        (list ’cons row start-col car-structure
+        (list 'cons row start-col car-structure
                (struct1 (cdr obj) row
                         (+ start-col *cons-atom-h-arrow-length*) 
                         obj-memory)))))
@@ -156,7 +161,7 @@
                     / result
                     *** **
                     ** *
-                    * (firstresult))
+                    * (first result))
               (display-sdl-result *)))))))
 
 (defun display-sdl-result (result) 
@@ -167,7 +172,7 @@
          (full-text (format nil "Result: ~S" result))
          (text (if (> (length full-text)
                       *sdraw-display-width*)
-                   (concatenate ’string
+                   (concatenate 'string
                                  (subseq full-text 0 (- *sdraw-display-width* 4))
                                  "...)") 
                    full-text)))
@@ -190,7 +195,7 @@
 
 (defun scrawl (obj)
   "Read-eval-print loop to travel through list"
-  (format t "~&Crawl through list: ’H’ for help, ’Q’ to quit.~%~%") 
+  (format t "~&Crawl through list: 'H' for help, 'Q' to quit.~%~%") 
   (setf *scrawl-object* obj)
   (setf *scrawl-current-obj* obj)
   (setf *extracting-sequence* nil)
@@ -210,18 +215,18 @@
 
 (defun scrawl-car-cmd ()
   (cond ((consp *scrawl-current-obj*)
-         (push ’car *extracting-sequence*)
+         (push 'car *extracting-sequence*)
          (setf *scrawl-current-obj* (car *scrawl-current-obj*))) 
         (t (format t
-                   "~&Can’t take CAR or CDR of an atom. Use B to back up.~%"))) 
+                   "~&Can't take CAR or CDR of an atom. Use B to back up.~%"))) 
   (display-scrawl-result))
  
 (defun scrawl-cdr-cmd ()
   (cond ((consp *scrawl-current-obj*)
-         (push ’cdr *extracting-sequence*)
+         (push 'cdr *extracting-sequence*)
          (setf *scrawl-current-obj* (cdr *scrawl-current-obj*))) 
         (t (format t
-                   "~&Can’t take CAR or CDR of an atom. Use B to back up.~%"))) 
+                   "~&Can't take CAR or CDR of an atom. Use B to back up.~%"))) 
   (display-scrawl-result))
 
 (defun scrawl-back-up-cmd () 
@@ -238,16 +243,16 @@
   (display-scrawl-result))
 
 (defun extract-obj (seq obj) 
-  (reduce #’funcall
+  (reduce #'funcall
             seq 
             :initial-value obj
             :from-end t))
 
 (defun get-car/cdr-string ()
   (if (null *extracting-sequence*)
-      (format nil "’~S" *scrawl-object*)
-      (format nil "(c~Ar ’~S)"
-              (map ’string #’(lambda (x)
+      (format nil "'~S" *scrawl-object*)
+      (format nil "(c~Ar '~S)"
+              (map 'string #'(lambda (x)
                                (ecase x
                                  (car #\a)
                                  (cdr #\d))) 
@@ -260,7 +265,7 @@
                                 (*print-circle* t)) 
   (let* ((extract-string (get-car/cdr-string))
          (text (if (> (length extract-string) *sdraw-display-width*) 
-                   (concatenate ’string
+                   (concatenate 'string
                                  (subseq extract-string 0
                                          (- *sdraw-display-width* 4))
                                  "...)") 
@@ -295,10 +300,13 @@
 (defvar *textline-array* (make-array *sdraw-num-lines*)) 
 (defvar *textline-lengths* (make-array *sdraw-num-lines*))
 
-(eval-when (eval load)
+;(eval-when (eval load)
+(eval-when (:execute :load-toplevel)
   (dotimes (i *sdraw-num-lines*)
-    (setf (aref *textline-array* i) (make-array *sdraw-display-width*
-                                                :element-type ’string-char))))
+    (setf (aref *textline-array* i) 
+	  (make-string *sdraw-display-width*))))
+          ;; (make-array *sdraw-display-width*
+          ;;             :element-type 'string-char))))
 
 (defun char-blt (row start-col string)
   (let ((spos (aref *textline-lengths* row))

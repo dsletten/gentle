@@ -23,24 +23,15 @@
 ;;;;
 ;;;;   Example:
 ;;;;
-;;;;   Notes:
+;;;;   Notes: (use-package :touretzky-sdraw)
 ;;;;
 ;;;;
 
-(defpackage :touretzky-sdraw (:use :common-lisp :test))
+(defpackage :touretzky-sdraw 
+  (:use :common-lisp)
+  (:export :sdraw :sdraw-loop :scrawl))
 
 (in-package :touretzky-sdraw)
-
-;(in-package "SDRAW")
-
-;(export ’(touretzky-sdraw::sdraw touretzky-sdraw::sdraw-loop touretzky-sdraw::scrawl)) 
-(export '(touretzky-sdraw::sdraw touretzky-sdraw::sdraw-loop touretzky-sdraw::scrawl)) 
-
-;(shadowing-import ’(touretzky-sdraw::sdraw touretzky-sdraw::sdraw-loop touretzky-sdraw::scrawl)
-;                   (find-package "USER"))
-
-(shadowing-import '(touretzky-sdraw::sdraw touretzky-sdraw::sdraw-loop touretzky-sdraw::scrawl)
-                   (find-package "CL-USER"))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; 
 ;;;
@@ -49,33 +40,39 @@
 ;;; but their values may change if cons cells are being drawn as 
 ;;; bit maps rather than as character sequences.
 
-(defparameter *sdraw-display-width* 79.) 
-(defparameter *sdraw-horizontal-atom-cutoff* 79.) 
-(defparameter *sdraw-horizontal-cons-cutoff* 65.)
+(defparameter *sdraw-display-width* 79) 
+;(defparameter *sdraw-horizontal-atom-cutoff* 79) 
+;(defparameter *sdraw-horizontal-cons-cutoff* 65)
 
 (defparameter *etc-string* "etc.") 
 (defparameter *circ-string* "circ.") 
-(defparameter *etc-spacing* 4.) 
-(defparameter *circ-spacing* 5.)
+(defparameter *etc-spacing* 4) 
+(defparameter *circ-spacing* 5)
 
-(defparameter *inter-atom-h-spacing* 3.) 
-(defparameter *cons-atom-h-arrow-length* 9.) 
-(defparameter *inter-cons-v-arrow-length* 3.) 
-(defparameter *cons-v-arrow-offset-threshold* 2.) 
-(defparameter *cons-v-arrow-offset-value* 1.)
+(defparameter *inter-atom-h-spacing* 3) 
+(defparameter *cons-atom-h-arrow-length* 9) 
+(defparameter *inter-cons-v-arrow-length* 3) 
+(defparameter *cons-v-arrow-offset-threshold* 2) 
+(defparameter *cons-v-arrow-offset-value* 1)
 
-(defparameter *sdraw-vertical-cutoff* 22.) 
-(defparameter *sdraw-num-lines* 25)
-(defvar *line-endings* (make-array *sdraw-num-lines*))
+(defparameter *sdraw-vertical-cutoff* 22) 
+(defparameter *sdraw-num-lines* 25 "The maximum depth allocated for the display of an object. Essentially three times the number of nested levels allowed.")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; 
 ;;;
 ;;; SDRAW and subordinate definitions.
 
-(defun sdraw (obj)
-  (fill *line-endings* most-negative-fixnum) 
-  (draw-structure (struct1 obj 0 0 nil)) 
-  (values))
+(defun sdraw (obj &key
+                    (display-width *sdraw-display-width*)
+                    (horizontal-atom-cutoff display-width)
+                    (horizontal-cons-cutoff (- display-width 14))
+                    (num-lines *sdraw-num-lines*))
+  (declare (special display-width horizontal-atom-cutoff horizontal-cons-cutoff num-lines))
+  (let ((line-endings (make-array num-lines)))
+    (declare (special line-endings))
+    (fill line-endings most-negative-fixnum) 
+    (draw-structure (struct1 obj 0 0 nil)) 
+    (values)))
 
 (defun struct1 (obj row root-col obj-memory) 
   (cond ((atom obj)
@@ -84,51 +81,54 @@
          (struct-process-circ row root-col))
         ((>= row *sdraw-vertical-cutoff*)
          (struct-process-etc row root-col))
-        (t (struct-process-cons obj row root-col
-                                (cons obj obj-memory)))))
+        (t (struct-process-cons obj row root-col (cons obj obj-memory)))))
 
 (defun struct-process-atom (atom-string row root-col) 
+  (declare (special horizontal-atom-cutoff))
   (let* ((start-col (struct-find-start row root-col))
          (end-col (+ start-col (length atom-string)))) 
-    (cond ((< end-col *sdraw-horizontal-atom-cutoff*)
+    (cond ((< end-col horizontal-atom-cutoff)
            (struct-record-position row end-col)
-           (list 'atom row start-col atom-string))
+           `(atom ,row ,start-col ,atom-string))
           (t (struct-process-etc row root-col)))))
 
+(defun struct-process-cons (obj row root-col obj-memory)
+  (declare (special horizontal-cons-cutoff))
+  (let* ((cons-start (struct-find-start row root-col))
+         (car-structure (struct1 (car obj)
+                                 (+ row *inter-cons-v-arrow-length*)
+                                 cons-start obj-memory))
+         (start-col (third car-structure)))
+    (if (>= start-col horizontal-cons-cutoff)
+        (struct-process-etc row root-col)
+        `(cons ,row ,start-col ,car-structure
+               ,(struct1 (cdr obj) row
+                         (+ start-col *cons-atom-h-arrow-length*) 
+                         obj-memory)))))
+
 (defun struct-process-etc (row root-col)
+  "Row is too long. Ellide ending."
   (let ((start-col (struct-find-start row root-col)))
     (struct-record-position 
      row
      (+ start-col (length *etc-string*) *etc-spacing*))
-    (list 'msg row start-col *etc-string*)))
+    `(msg ,row ,start-col ,*etc-string*)))
 
 (defun struct-process-circ (row root-col)
+  "Circular structure detected."
   (let ((start-col (struct-find-start row root-col)))
     (struct-record-position 
      row
      (+ start-col (length *circ-string*) *circ-spacing*))
-    (list 'msg row start-col *circ-string*)))
+    `(msg ,row ,start-col ,*circ-string*)))
  
-(defun struct-process-cons (obj row root-col obj-memory)
-  (let* ((cons-start (struct-find-start row root-col))
-         (car-structure 
-          (struct1 (car obj)
-                   (+ row *inter-cons-v-arrow-length*)
-                   cons-start obj-memory))
-         (start-col (third car-structure)))
-    (if (>= start-col *sdraw-horizontal-cons-cutoff*)
-        (struct-process-etc row root-col)
-        (list 'cons row start-col car-structure
-               (struct1 (cdr obj) row
-                        (+ start-col *cons-atom-h-arrow-length*) 
-                        obj-memory)))))
-
 (defun struct-find-start (row root-col)
-  (max root-col (+ *inter-atom-h-spacing*
-                   (aref *line-endings* row))))
+  (declare (special line-endings))
+  (max root-col (+ *inter-atom-h-spacing* (aref line-endings row))))
 
 (defun struct-record-position (row end-col) 
-  (setf (aref *line-endings* row) end-col))
+  (declare (special line-endings))
+  (setf (aref line-endings row) end-col))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; 
 ;;;
@@ -159,7 +159,7 @@
                     / result
                     *** **
                     ** *
-                    * (firstresult))
+                    * (first result))
               (display-sdl-result *)))))))
 
 (defun display-sdl-result (result) 
@@ -257,16 +257,17 @@
                     *extracting-sequence*)
               *scrawl-object*)))
 
-(defun display-scrawl-result (&aux (*print-pretty* nil)
-                                (*print-length* nil)
-                                (*print-level* nil)
-                                (*print-circle* t)) 
-  (let* ((extract-string (get-car/cdr-string))
+(defun display-scrawl-result ()
+  (let* ((*print-pretty* nil)
+         (*print-length* nil)
+         (*print-level* nil)
+         (*print-circle* t)
+         (extract-string (get-car/cdr-string))
          (text (if (> (length extract-string) *sdraw-display-width*) 
                    (concatenate 'string
-                                 (subseq extract-string 0
-                                         (- *sdraw-display-width* 4))
-                                 "...)") 
+                                (subseq extract-string 0
+                                        (- *sdraw-display-width* 4))
+                                "...)") 
                    extract-string)))
     (sdraw *scrawl-current-obj*)
     (format t "~&~%~A~%~%" text)))
@@ -289,81 +290,73 @@
 ;;; The following definitions are specific to the tty implementation.
 
 (defparameter *cons-string* "[*|*]") 
-(defparameter *cons-cell-flatsize* 5.) 
+(defparameter *cons-cell-flatsize* 5) 
 (defparameter *cons-h-arrowshaft-char* #\-) 
 (defparameter *cons-h-arrowhead-char* #\>) 
 (defparameter *cons-v-line* "|") 
 (defparameter *cons-v-arrowhead* "v")
 
-(defvar *textline-array* (make-array *sdraw-num-lines*)) 
-(defvar *textline-lengths* (make-array *sdraw-num-lines*))
-
-(eval-when (eval load)
-  (dotimes (i *sdraw-num-lines*)
-    (setf (aref *textline-array* i) (make-array *sdraw-display-width*
-                                                :element-type 'string))))
-;                                                :element-type 'string-char))))
-
 (defun char-blt (row start-col string)
-  (let ((spos (aref *textline-lengths* row))
-        (line (aref *textline-array* row))) 
-    (do ((i spos (1+ i)))
-        ((>= i start-col))
-      (setf (aref line i) #\Space))
+  "Clear out the existing text in ROW up to position START-COL."
+  (declare (special textline-array textline-lengths))
+  (let ((spos (aref textline-lengths row))
+        (line (aref textline-array row))) 
+    (fill line #\Space :start spos :end start-col)
     (replace line string :start1 start-col)
-    (setf (aref *textline-lengths* row)
+    (setf (aref textline-lengths row)
           (+ start-col (length string)))))
 
 (defun draw-structure (directions) 
-  (fill *textline-lengths* 0.) 
-  (follow-directions directions) 
-  (dump-display))
+  (declare (special display-width num-lines))
+  (let ((textline-array (make-array num-lines))
+        (textline-lengths (make-array num-lines)))
+    (declare (special textline-array textline-lengths))
+    (dotimes (i (length textline-array))
+      (setf (aref textline-array i) 
+            (make-string display-width)))
+    (fill textline-lengths 0) 
+    (follow-directions directions) 
+    (dump-display)))
 
 (defun follow-directions (dirs &optional is-car) 
   (ecase (car dirs)
     (cons (draw-cons dirs))
-    ((atom msg) (draw-msg (second dirs)
-                          (third dirs)
-                          (fourth dirs)
-                          is-car))))
- 
-(defun draw-cons (obj)
-  (let* ((row (second obj))
-         (col (third obj))
-         (car-component (fourth obj))
-         (cdr-component (fifth obj))
-         (line (aref *textline-array* row))
-         (h-arrow-start (+ col *cons-cell-flatsize*))
-         (h-arrowhead-col (1- (third cdr-component))))
-    (char-blt row col *cons-string*) 
-    (do ((i h-arrow-start (1+ i)))
-        ((>= i h-arrowhead-col))
-      (setf (aref line i) *cons-h-arrowshaft-char*))
-    (setf (aref line h-arrowhead-col) *cons-h-arrowhead-char*)
-    (setf (aref *textline-lengths* row) (1+ h-arrowhead-col)) 
-    (char-blt (+ row 1) (+ col 1) *cons-v-line*)
-    (char-blt (+ row 2) (+ col 1) *cons-v-arrowhead*)
-    (follow-directions car-component t)
-    (follow-directions cdr-component)))
+    ((atom msg) (draw-msg dirs is-car))))
 
-(defun draw-msg (row col string is-car)
+(defun draw-cons (directions)
+  (declare (special textline-array textline-lengths))
+  (destructuring-bind (type row col car-component cdr-component) directions
+    (declare (ignore type))
+    (let ((line (aref textline-array row))
+          (h-arrow-start (+ col *cons-cell-flatsize*))
+          (h-arrowhead-col (1- (third cdr-component))))
+      (char-blt row col *cons-string*) 
+      (do ((i h-arrow-start (1+ i)))
+          ((>= i h-arrowhead-col))
+        (setf (aref line i) *cons-h-arrowshaft-char*))
+      (setf (aref line h-arrowhead-col) *cons-h-arrowhead-char*)
+      (setf (aref textline-lengths row) (1+ h-arrowhead-col)) 
+      (char-blt (+ row 1) (+ col 1) *cons-v-line*)
+      (char-blt (+ row 2) (+ col 1) *cons-v-arrowhead*)
+      (follow-directions car-component t)
+      (follow-directions cdr-component))))
+
+(defun draw-msg (directions is-car)
+  (destructuring-bind (type row col string) directions
+    (declare (ignore type))
   (char-blt row
-            (+ col (if (and is-car
-                            (<= (length string)
-                                *cons-v-arrow-offset-threshold*)) 
+            (+ col (if (and is-car (<= (length string) *cons-v-arrow-offset-threshold*)) 
                        *cons-v-arrow-offset-value*
                        0))
-            string))
+            string)))
 
 (defun dump-display ()
+  "Actually print the structure to the screen."
+  (declare (special textline-array textline-lengths))
   (terpri)
-  (dotimes (i *sdraw-num-lines*)
-    (let ((len (aref *textline-lengths* i))) 
-      (if (plusp len)
-          (format t "~&~A"
-                  (subseq (aref *textline-array* i) 0 len))
-          (return nil))))
+  (loop for i from 0 below (length textline-array)
+        for len = (aref textline-lengths i)
+        for line = (aref textline-array i)
+        while (plusp len)
+        do (format t "~&~A" (subseq line 0 len)))
   (terpri))
-
-
-
