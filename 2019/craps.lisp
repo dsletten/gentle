@@ -26,7 +26,7 @@
 ;;;;   Notes:
 ;;;;
 ;;;;
-(load "/Users/dsletten/lisp/packages/test.lisp")
+(load "/home/slytobias/lisp/packages/test.lisp")
 
 (defpackage :craps (:use :common-lisp :test))
 
@@ -116,3 +116,65 @@
           ((= score 7) (announce throw '(you lose)))
           (t (announce throw '(throw again)))) ))
 
+;;;
+;;;    2020
+;;;
+(defun throw-die ()
+  "Result of throwing one six-sided die."
+  (1+ (random 6)))
+
+(defun throw-dice ()
+  "List of results of throwing two six-sided dice."
+  (list (throw-die) (throw-die)))
+
+(deftype die-throw ()
+  '(cons (integer 1 6) (cons (integer 1 6) null)))
+
+(defun snake-eyes-p (throw)
+  "Is the THROW a pair of ones?"
+  (equal throw '(1 1)))
+
+(defun box-cars-p (throw)
+  "Is the THROW a pair of sixes?"
+  (equal throw '(6 6)))
+
+(defun instant-win-p (throw)
+  "Is the value of the THROW 7 or 11?"
+  (check-type throw die-throw)
+  (case (+ (first throw) (second throw))
+    ((7 11) t)
+    (otherwise nil)))
+
+(defun instant-loss-p (throw)
+  "Is the value of the THROW 2, 3, or 12?"
+  (check-type throw die-throw)
+  (case (+ (first throw) (second throw))
+    ((2 3 12) t)
+    (otherwise nil)))
+
+(defun say-throw (throw)
+  (check-type throw die-throw)
+  (cond ((snake-eyes-p throw) 'snake-eyes)
+        ((box-cars-p throw) 'box-cars)
+        (t (+ (first throw) (second throw)))) )
+
+(defun say (first second result status)
+  (format t "~A~%" `(throw ,first and ,second -- ,result -- ,@status)))
+
+(defun craps ()
+  "Output analysis of THROW."
+  (let ((throw (throw-dice)))
+    (destructuring-bind (first second) throw
+      (let ((result (say-throw throw)))
+        (cond ((instant-win-p throw) (say first second result '(you win)))
+              ((instant-loss-p throw) (say first second result '(you lose)))
+              (t (say first second result `(your point is ,result))
+                 (try-for-point result)))) )))
+
+(defun try-for-point (point)
+  (destructuring-bind (first second) (throw-dice)
+    (let ((result (+ first second)))
+      (cond ((= result point) (say first second result '(you win)))
+            ((= result 7) (say first second result '(you lose)))
+            (t (say first second result '(throw again))
+               (try-for-point point)))) ))

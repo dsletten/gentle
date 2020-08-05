@@ -103,6 +103,65 @@
    (eq (not #2=(< 2 3)) (cl:not #2#))))
 
 ;;;
+;;;    4.4
+;;;    
+(defun ordered (a b)
+  (if (< b a)
+      (list b a)
+      (list a b)))
+
+(deftest test-ordered ()
+  (check
+   (equal (ordered 2 3) '(2 3))
+   (equal (ordered 3 2) '(2 3))
+   (equal (ordered 2 2) '(2 2))))
+
+;;;
+;;;    4.8
+;;;    
+(defun emphasize (s)
+  (cond ((eql (first s) 'good) (cons 'great (rest s)))
+        ((eql (first s) 'bad) (cons 'awful (rest s)))
+        (t (cons 'very s))))
+
+(defun emphasize (s)
+  (destructuring-bind (adjective . more) s
+    (case adjective
+      (good (cons 'great more))
+      (bad (cons 'awful more))
+      (otherwise (cons 'very s)))) )
+
+(defun emphasize (s)
+  (case (first s)
+    (good (cons 'great (rest s)))
+    (bad (cons 'awful (rest s)))
+    (otherwise (cons 'very s))))
+
+(deftest test-emphasize ()
+  (check
+   (equal (emphasize '(good day)) '(great day))
+   (equal (emphasize '(bad day)) '(awful day))
+   (equal (emphasize '(long day)) '(very long day))))
+
+;;;
+;;;    4.9
+;;;    
+(defun make-odd (n)
+  (cond ((cl:not (oddp n)) (1+ n))
+        (t n)))
+
+(defun make-odd (n)
+  (+ n (if (oddp n) 0 1)))
+
+(deftest test-make-odd ()
+  (check
+   (oddp (make-odd -2))
+   (oddp (make-odd -1))
+   (oddp (make-odd 0))
+   (oddp (make-odd 1))
+   (oddp (make-odd 2))))
+
+;;;
 ;;;    4.10
 ;;;
 (defun constrain (x min max)
@@ -118,6 +177,7 @@
           x)))
 
 (defun constrain (x min max)
+  (assert (< min max))
   (max (min x max) min))
 
 (deftest test-constrain ()
@@ -135,6 +195,78 @@
         ((zerop (third nums)) 'third)
         (t 'none)))
 
+(defun first-zero (ns)
+  (destructuring-bind (a b c) ns
+    (cond ((zerop a) 'first)
+          ((zerop b) 'second)
+          ((zerop c) 'third)
+          (t 'none))))
+
+(defun first-zero (ns)
+  (case (position 0 ns)
+    (0 'first)
+    (1 'second)
+    (2 'third)
+    (otherwise 'none)))
+
+(defun first-zero (ns)
+  (let ((i (position 0 ns)))
+    (if (null i)
+        'none
+        (aref #(first second third) i))))
+
+(defun first-zero (ns)
+  (let ((i (position 0 ns)))
+    (if (null i)
+        'none
+        (intern (format nil "~:@(~:R~)" (1+ i)))) ))
+
+(defun first-zero (ns)
+  (intern (format nil "~:@(~:[none~;~:*~:R~]~)" (position 0 (cons :pung ns)))) ) ; !!!!!!!!!
+
+;;;
+;;;    Yuck...
+;;;    
+;; (let ((size 3))
+;;   (defun first-zero (ns)
+;;     (labels ((check-it (i l result)
+;;                (cond ((minusp i) (error "Bad input: ~A" ns))
+;;                      ((endp l) (if (zerop i)
+;;                                    'none
+;;                                    (error "Bad input: ~A" ns)))
+;;                      ((zerop (first l)) (first result))
+;;                      (t (check-it (1- i) (rest l) (rest result)))) ))
+;;       (check-it 2 ns (loop for i from 1 to size collect (intern (format nil "~:@(~:R~)" i)))) )))
+
+(defun first-zero (ns)
+  (labels ((check-it (l result)
+             (cond ((and (endp l) (endp result)) 'none)
+                   ((or (endp l) (endp result)) (error "Bad input: ~A" ns))
+                   ((zerop (first l)) (first result))
+                   (t (check-it (rest l) (rest result)))) ))
+    (check-it ns '(first second third))))
+;    (check-it ns (loop for i from 1 to 3 collect (intern (format nil "~:@(~:R~)" i)))) ))
+
+;;;
+;;;    Not as clean as recursive version!
+;;;    
+(defun first-zero (ns)
+  (do ((l ns (rest l))
+       (result '(first second third) (rest result)))
+      ((endp l) (if (endp result) 'none (error "Bad input: ~A" ns)))
+    (cond ((endp result) (error "Bad input: ~A" ns))
+          ((zerop (first l)) (return (first result)))) ))
+
+;;;
+;;;    Better translation.
+;;;    
+(defun first-zero (ns)
+  (do ((l ns (rest l))
+       (result '(first second third) (rest result)))
+      ((and (endp l) (endp result)) 'none)
+    (cond ((or (endp l) (endp result)) (error "Bad input: ~A" ns))
+          ((zerop (first l)) (return (first result)))) ))
+
 (deftest test-first-zero ()
   (check
    (eq (first-zero '(0 3 4)) 'first)
@@ -146,9 +278,11 @@
 ;;;    4.12
 ;;;
 (defconstant limit 99)
-(defun cycle (n)
-  (cond ((= n limit) 1)
-        (t (1+ n))))
+;;
+;;    Broken!
+;; (defun cycle (n)
+;;   (cond ((= n limit) 1)
+;;         (t (1+ n))))
 
 (defun cycle (n)
   (1+ (mod n limit)))
@@ -179,6 +313,22 @@
    (eq (how-compute 0 0 0) 'sum-of))) ;????
 
 ;;;
+;;;    4.15
+;;;    
+;; Ha!
+;; (defun geq (x y)
+;;   (>= x y))
+
+(defun geq (x y)
+  (or (> x y) (= x y)))
+
+(deftest test-geq ()
+  (check
+   (geq 8 8)
+   (geq 8 2)
+   (cl:not (geq 2 8))))
+
+;;;
 ;;;    4.16
 ;;;
 (defun fancy (x)
@@ -191,11 +341,22 @@
         ((typep x '(and (integer * (0)) (satisfies minusp))) (* 2 x))
         (t (/ x 2))))
 
+(defun fancy-factor (x)
+  (if (oddp x)
+      (if (plusp x) x 2)
+      1/2))
+
+(defun fancy (x)
+  (* x (fancy-factor x)))
+
 (deftest test-fancy ()
   (check
    (= (fancy 3) 9)
    (= (fancy -7) -14)
-   (= (fancy pi) (/ pi 2)))) ; First version of FANCY => error
+   (= (fancy 0) 0)
+   (= (fancy 8) 4)
+   (= (fancy -4) -2)))
+;   (= (fancy pi) (/ pi 2)))) ; First version of FANCY => error
 
 ;;;
 ;;;    4.17
@@ -211,6 +372,15 @@
     ((man woman) (eq age 'adult))
     (otherwise nil)))
 
+(deftype child ()
+  '(member boy girl))
+
+(deftype adult ()
+  '(member man woman))
+
+(defun categorize (sex age)
+  (typep sex age))
+
 (deftest test-categorize ()
   (check
    (categorize 'boy 'child)
@@ -223,7 +393,7 @@
    (cl:not (categorize 'woman 'child))))
 
 ;;;
-;;;    4.18
+;;;    4.18 See pensoj 130807!!
 ;;;
 (defun play (first second)
   (cond ((eq first second) 'tie)
@@ -258,6 +428,18 @@
           ((eq second win) 'first-wins)
           ((eq second lose) 'second-wins))))
 
+(defun play (first second)
+  (labels ((wins (a b)
+             (ecase a
+               (rock (eq b 'scissors))
+               (paper (eq b 'rock))
+               (scissors (eq b 'paper)))) )
+    (cond ((eq first second) 'tie)
+          ((wins first second) 'first-wins)
+          (t 'second-wins))))
+          ;; ((wins second first) 'second-wins) ; Unnecessary. Second player wins if first 2 clauses fail.
+          ;; (t (error "Huh?")))) )
+
 ;(dolist (first #1='(rock paper scissors)) (dolist (second #1#) (print `(eq (play ',first ',second)))))
 
 (deftest test-play ()
@@ -271,6 +453,134 @@
    (EQ (PLAY 'SCISSORS 'ROCK) 'second-wins) 
    (EQ (PLAY 'SCISSORS 'PAPER) 'first-wins) 
    (EQ (PLAY 'SCISSORS 'SCISSORS) 'tie)))
+
+;;;
+;;;    4.20
+;;;
+(defun compare (x y)
+  (cond ((= x y) 'numbers-are-the-same)
+        ((< x y) 'first-is-smaller)
+        ((> x y) 'first-is-bigger)))
+
+(defun compare (x y)
+  (cond ((= x y) 'numbers-are-the-same)
+        ((< x y) 'first-is-smaller)
+        (t 'first-is-bigger)))
+
+(defun compare (x y)
+  (if (= x y)
+      'numbers-are-the-same
+      (if (< x y)
+          'first-is-smaller
+          'first-is-bigger)))
+
+(defun compare (x y)
+  (or (and (= x y) 'numbers-are-the-same)
+      (and (< x y) 'first-is-smaller)
+      'first-is-bigger))
+
+(deftest test-compare ()
+  (check
+   (eq (compare 2 2) 'numbers-are-the-same)
+   (eq (compare 2d0 2d0) 'numbers-are-the-same)
+   (eq (compare 2 2d0) 'numbers-are-the-same)
+   (eq (compare 2 3) 'first-is-smaller)
+   (eq (compare 2d0 3d0) 'first-is-smaller)
+   (eq (compare 2 3d0) 'first-is-smaller)
+   (eq (compare -2 -3) 'first-is-bigger)
+   (eq (compare -2d0 -3d0) 'first-is-bigger)
+   (eq (compare -2 -3d0) 'first-is-bigger)))
+
+;;;
+;;;    4.21
+;;;
+(defun gtest (x y)
+  (or (> x y)
+      (zerop x)
+      (zerop y)))
+
+(defun gtest (x y)
+  (if (> x y)
+      t
+      (if (zerop x)
+          t
+          (zerop y))))
+
+(defun gtest (x y)
+  (if (not (> x y))
+      (if (not (zerop x))
+          (zerop y)
+          t)
+      t))
+
+;;    Superfluous
+(defun gtest (x y)
+  (cond ((> x y) t)
+        ((zerop x) t)
+        ((zerop y) t)
+        (t nil)))
+
+(defun gtest (x y)
+  (cond ((> x y))
+        ((zerop x))
+        ((zerop y))
+        (t nil)))
+
+(deftest test-gtest ()
+  (check
+   (gtest 9 4)
+   (gtest 9d0 4d0)
+   (gtest 9 4d0)
+   (not (gtest 4 9))
+   (gtest 9 0)
+   (gtest 0 4)
+   (gtest 0d0 0d0)))
+
+;;;
+;;;    4.22
+;;;    
+(defun boilingp (temperature scale)
+  (cond ((eq scale 'fahrenheit) (> temperature 212))
+        ((eq scale 'celsius) (> temperature 100))
+        (t (error "Unknown scale: ~A" scale))))
+
+(defun boilingp (temperature scale)
+  (ecase scale
+    (fahrenheit (> temperature 212))
+    (celsius (> temperature 100))))
+
+(defun boilingp (temperature scale)
+  (if (eq scale 'fahrenheit)
+      (> temperature 212)
+      (if (eq scale 'celsius)
+          (> temperature 100)
+          (error "Unknown scale: ~A" scale))))
+
+(let ((boiling-points `((fahrenheit . ,#'(lambda (temperature) (> temperature 212)))
+                        (celsius . ,#'(lambda (temperature) (> temperature 100)))) ))
+  (defun boilingp (temperature scale)
+    (let ((test (cdr (assoc scale boiling-points))))
+      (if (null test)
+          (error "Unknown scale: ~A" scale)
+          (funcall test temperature)))) )
+
+;;;
+;;;    We lose the error checking here...
+;;;    
+(defun boilingp (temperature scale)
+  (or (and (eq scale 'fahrenheit) (> temperature 212))
+      (and (eq scale 'celsius) (> temperature 100))))
+
+(deftest test-boilingp ()
+  (check
+   (boilingp 270 'fahrenheit)
+   (boilingp 212.1d0 'fahrenheit)
+   (not (boilingp 200 'fahrenheit))
+   (not (boilingp 32d0 'fahrenheit))
+   (boilingp 115 'celsius)
+   (boilingp 100.1d0 'celsius)
+   (not (boilingp 99 'celsius))
+   (not (boilingp -40d0 'celsius))))
 
 ;;;
 ;;;    4.29
@@ -324,4 +634,3 @@
    (eq (logical-or (> 4 3) (> 3 4)) t)
    (eq (logical-or nil nil) nil)
    (eq (logical-or (> 2 3) (> 3 4)) nil)))
-
