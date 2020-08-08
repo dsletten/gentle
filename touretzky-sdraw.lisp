@@ -62,73 +62,150 @@
 ;;;
 ;;; SDRAW and subordinate definitions.
 
+(defclass renderer ()
+  ((display-width :reader display-width :initform *sdraw-display-width* :initarg :display-width)
+   (horizontal-atom-cutoff :reader horizontal-atom-cutoff :initform *sdraw-horizontal-atom-cutoff* :initarg :horizontal-atom-cutoff)
+   (horizontal-cons-cutoff :reader horizontal-cons-cutoff :initform *sdraw-horizontal-cons-cutoff* :initarg :horizontal-cons-cutoff)
+   (num-lines :reader num-lines :initform *sdraw-num-lines* :initarg :num-lines)
+   (line-endings :reader line-endings)))
+
+(defmethod initialize-instance :after ((r renderer) &rest initargs)
+  (declare (ignore initargs))
+  (with-slots (num-lines line-endings) r
+    (setf line-endings (make-array num-lines))
+    (fill line-endings most-negative-fixnum)))
+
 (defun sdraw (obj &key
                     (display-width *sdraw-display-width*)
                     (horizontal-atom-cutoff display-width)
                     (horizontal-cons-cutoff (- display-width 14))
                     (num-lines *sdraw-num-lines*))
-  (declare (special display-width horizontal-atom-cutoff horizontal-cons-cutoff num-lines))
-  (let ((line-endings (make-array num-lines)))
-    (declare (special line-endings))
-    (fill line-endings most-negative-fixnum) 
-    (draw-structure (struct1 obj 0 0 nil)) 
+  (let ((renderer (make-instance 'tty :display-width display-width :horizontal-atom-cutoff horizontal-atom-cutoff :horizontal-cons-cutoff horizontal-cons-cutoff :num-lines num-lines)))
+    (draw-structure renderer (struct1 renderer obj 0 0 nil)) 
     (values)))
 
-(defun struct1 (obj row root-col obj-memory) 
+(defun struct1 (renderer obj row root-col obj-memory) 
   (cond ((atom obj)
-         (struct-process-atom (format nil "~S" obj) row root-col)) 
+         (struct-process-atom renderer (format nil "~S" obj) row root-col)) 
         ((member obj obj-memory :test #'eq)
-         (struct-process-circ row root-col))
+         (struct-process-circ renderer row root-col))
         ((>= row *sdraw-vertical-cutoff*)
-         (struct-process-etc row root-col))
-        (t (struct-process-cons obj row root-col (cons obj obj-memory)))))
+         (struct-process-etc renderer row root-col))
+        (t (struct-process-cons renderer obj row root-col (cons obj obj-memory)))) )
 
-(defun struct-process-atom (atom-string row root-col) 
-  (declare (special horizontal-atom-cutoff))
-  (let* ((start-col (struct-find-start row root-col))
+(defun struct-process-atom (renderer atom-string row root-col) 
+  (let* ((start-col (struct-find-start renderer row root-col))
          (end-col (+ start-col (length atom-string)))) 
-    (cond ((< end-col horizontal-atom-cutoff)
-           (struct-record-position row end-col)
+    (cond ((< end-col (horizontal-atom-cutoff renderer))
+           (struct-record-position renderer row end-col)
            `(atom ,row ,start-col ,atom-string))
-          (t (struct-process-etc row root-col)))))
+          (t (struct-process-etc renderer row root-col)))) )
 
-(defun struct-process-cons (obj row root-col obj-memory)
-  (declare (special horizontal-cons-cutoff))
-  (let* ((cons-start (struct-find-start row root-col))
-         (car-structure (struct1 (car obj)
+(defun struct-process-cons (renderer obj row root-col obj-memory)
+  (let* ((cons-start (struct-find-start renderer row root-col))
+         (car-structure (struct1 renderer
+                                 (car obj)
                                  (+ row *inter-cons-v-arrow-length*)
                                  cons-start obj-memory))
          (start-col (third car-structure)))
-    (if (>= start-col horizontal-cons-cutoff)
-        (struct-process-etc row root-col)
+    (if (>= start-col (horizontal-cons-cutoff renderer))
+        (struct-process-etc renderer row root-col)
         `(cons ,row ,start-col ,car-structure
-               ,(struct1 (cdr obj) row
+               ,(struct1 renderer (cdr obj) row
                          (+ start-col *cons-atom-h-arrow-length*) 
-                         obj-memory)))))
+                         obj-memory)))) )
 
-(defun struct-process-etc (row root-col)
+(defun struct-process-etc (renderer row root-col)
   "Row is too long. Ellide ending."
-  (let ((start-col (struct-find-start row root-col)))
-    (struct-record-position 
-     row
-     (+ start-col (length *etc-string*) *etc-spacing*))
+  (let ((start-col (struct-find-start renderer row root-col)))
+    (struct-record-position renderer
+                            row
+                            (+ start-col (length *etc-string*) *etc-spacing*))
     `(msg ,row ,start-col ,*etc-string*)))
 
-(defun struct-process-circ (row root-col)
+(defun struct-process-circ (renderer row root-col)
   "Circular structure detected."
-  (let ((start-col (struct-find-start row root-col)))
-    (struct-record-position 
-     row
-     (+ start-col (length *circ-string*) *circ-spacing*))
+  (let ((start-col (struct-find-start renderer row root-col)))
+    (struct-record-position renderer
+                            row
+                            (+ start-col (length *circ-string*) *circ-spacing*))
     `(msg ,row ,start-col ,*circ-string*)))
  
-(defun struct-find-start (row root-col)
-  (declare (special line-endings))
-  (max root-col (+ *inter-atom-h-spacing* (aref line-endings row))))
+(defun struct-find-start (renderer row root-col)
+  (with-slots (line-endings) renderer
+    (max root-col (+ *inter-atom-h-spacing* (aref line-endings row)))) )
 
-(defun struct-record-position (row end-col) 
-  (declare (special line-endings))
-  (setf (aref line-endings row) end-col))
+(defun struct-record-position (renderer row end-col) 
+  (with-slots (line-endings) renderer
+    (setf (aref line-endings row) end-col)))
+
+;; (defun sdraw (obj &key
+;;                     (display-width *sdraw-display-width*)
+;;                     (horizontal-atom-cutoff display-width)
+;;                     (horizontal-cons-cutoff (- display-width 14))
+;;                     (num-lines *sdraw-num-lines*))
+;;   (declare (special display-width horizontal-atom-cutoff horizontal-cons-cutoff num-lines))
+;;   (let ((line-endings (make-array num-lines)))
+;;     (declare (special line-endings))
+;;     (fill line-endings most-negative-fixnum) 
+;;     (draw-structure (struct1 obj 0 0 nil)) 
+;;     (values)))
+
+;; (defun struct1 (obj row root-col obj-memory) 
+;;   (cond ((atom obj)
+;;          (struct-process-atom (format nil "~S" obj) row root-col)) 
+;;         ((member obj obj-memory :test #'eq)
+;;          (struct-process-circ row root-col))
+;;         ((>= row *sdraw-vertical-cutoff*)
+;;          (struct-process-etc row root-col))
+;;         (t (struct-process-cons obj row root-col (cons obj obj-memory)))))
+
+;; (defun struct-process-atom (atom-string row root-col) 
+;;   (declare (special horizontal-atom-cutoff))
+;;   (let* ((start-col (struct-find-start row root-col))
+;;          (end-col (+ start-col (length atom-string)))) 
+;;     (cond ((< end-col horizontal-atom-cutoff)
+;;            (struct-record-position row end-col)
+;;            `(atom ,row ,start-col ,atom-string))
+;;           (t (struct-process-etc row root-col)))))
+
+;; (defun struct-process-cons (obj row root-col obj-memory)
+;;   (declare (special horizontal-cons-cutoff))
+;;   (let* ((cons-start (struct-find-start row root-col))
+;;          (car-structure (struct1 (car obj)
+;;                                  (+ row *inter-cons-v-arrow-length*)
+;;                                  cons-start obj-memory))
+;;          (start-col (third car-structure)))
+;;     (if (>= start-col horizontal-cons-cutoff)
+;;         (struct-process-etc row root-col)
+;;         `(cons ,row ,start-col ,car-structure
+;;                ,(struct1 (cdr obj) row
+;;                          (+ start-col *cons-atom-h-arrow-length*) 
+;;                          obj-memory)))))
+
+;; (defun struct-process-etc (row root-col)
+;;   "Row is too long. Ellide ending."
+;;   (let ((start-col (struct-find-start row root-col)))
+;;     (struct-record-position 
+;;      row
+;;      (+ start-col (length *etc-string*) *etc-spacing*))
+;;     `(msg ,row ,start-col ,*etc-string*)))
+
+;; (defun struct-process-circ (row root-col)
+;;   "Circular structure detected."
+;;   (let ((start-col (struct-find-start row root-col)))
+;;     (struct-record-position 
+;;      row
+;;      (+ start-col (length *circ-string*) *circ-spacing*))
+;;     `(msg ,row ,start-col ,*circ-string*)))
+ 
+;; (defun struct-find-start (row root-col)
+;;   (declare (special line-endings))
+;;   (max root-col (+ *inter-atom-h-spacing* (aref line-endings row))))
+
+;; (defun struct-record-position (row end-col) 
+;;   (declare (special line-endings))
+;;   (setf (aref line-endings row) end-col))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; 
 ;;;
@@ -296,67 +373,139 @@
 (defparameter *cons-v-line* "|") 
 (defparameter *cons-v-arrowhead* "v")
 
-(defun char-blt (row start-col string)
-  "Clear out the existing text in ROW up to position START-COL."
-  (declare (special textline-array textline-lengths))
-  (let ((spos (aref textline-lengths row))
-        (line (aref textline-array row))) 
-    (fill line #\Space :start spos :end start-col)
-    (replace line string :start1 start-col)
-    (setf (aref textline-lengths row)
-          (+ start-col (length string)))))
+(defclass tty (renderer)
+  ((textline-array :reader textline-array)
+   (textline-lengths :reader textline-lengths)))
 
-(defun draw-structure (directions) 
-  (declare (special display-width num-lines))
-  (let ((textline-array (make-array num-lines))
-        (textline-lengths (make-array num-lines)))
-    (declare (special textline-array textline-lengths))
+(defmethod initialize-instance :after ((tty tty) &rest initargs)
+  (declare (ignore initargs))
+  (with-slots (display-width num-lines textline-array textline-lengths) tty
+    (setf textline-array (make-array num-lines)
+          textline-lengths (make-array num-lines))
     (dotimes (i (length textline-array))
       (setf (aref textline-array i) 
             (make-string display-width)))
-    (fill textline-lengths 0) 
-    (follow-directions directions) 
-    (dump-display)))
+    (fill textline-lengths 0)))
 
-(defun follow-directions (dirs &optional is-car) 
+(defgeneric draw-structure ((r renderer) directions))
+(defmethod draw-structure ((tty tty) directions) 
+  (follow-directions tty directions) 
+  (dump-display tty))
+
+(defun follow-directions (tty dirs &optional is-car) 
   (ecase (car dirs)
-    (cons (draw-cons dirs))
-    ((atom msg) (draw-msg dirs is-car))))
+    (cons (draw-cons tty dirs))
+    ((atom msg) (draw-msg tty dirs is-car))))
 
-(defun draw-cons (directions)
-  (declare (special textline-array textline-lengths))
+(defun draw-cons (tty directions)
   (destructuring-bind (type row col car-component cdr-component) directions
     (declare (ignore type))
-    (let ((line (aref textline-array row))
-          (h-arrow-start (+ col *cons-cell-flatsize*))
-          (h-arrowhead-col (1- (third cdr-component))))
-      (char-blt row col *cons-string*) 
-      (do ((i h-arrow-start (1+ i)))
-          ((>= i h-arrowhead-col))
-        (setf (aref line i) *cons-h-arrowshaft-char*))
-      (setf (aref line h-arrowhead-col) *cons-h-arrowhead-char*)
-      (setf (aref textline-lengths row) (1+ h-arrowhead-col)) 
-      (char-blt (+ row 1) (+ col 1) *cons-v-line*)
-      (char-blt (+ row 2) (+ col 1) *cons-v-arrowhead*)
-      (follow-directions car-component t)
-      (follow-directions cdr-component))))
+    (with-slots (textline-array textline-lengths) tty
+      (let ((line (aref textline-array row))
+            (h-arrow-start (+ col *cons-cell-flatsize*))
+            (h-arrowhead-col (1- (third cdr-component))))
+        (char-blt tty row col *cons-string*) 
+        (do ((i h-arrow-start (1+ i)))
+            ((>= i h-arrowhead-col))
+          (setf (aref line i) *cons-h-arrowshaft-char*))
+        (setf (aref line h-arrowhead-col) *cons-h-arrowhead-char*)
+        (setf (aref textline-lengths row) (1+ h-arrowhead-col)) 
+        (char-blt tty (+ row 1) (+ col 1) *cons-v-line*)
+        (char-blt tty (+ row 2) (+ col 1) *cons-v-arrowhead*)
+        (follow-directions tty car-component t)
+        (follow-directions tty cdr-component)))) )
 
-(defun draw-msg (directions is-car)
+(defun draw-msg (tty directions is-car)
   (destructuring-bind (type row col string) directions
     (declare (ignore type))
-  (char-blt row
+  (char-blt tty 
+            row
             (+ col (if (and is-car (<= (length string) *cons-v-arrow-offset-threshold*)) 
                        *cons-v-arrow-offset-value*
                        0))
             string)))
 
-(defun dump-display ()
+(defun char-blt (tty row start-col string)
+  "Clear out the existing text in ROW up to position START-COL."
+  (with-slots (textline-array textline-lengths) tty
+    (let ((spos (aref textline-lengths row))
+          (line (aref textline-array row))) 
+      (fill line #\Space :start spos :end start-col)
+      (replace line string :start1 start-col)
+      (setf (aref textline-lengths row)
+            (+ start-col (length string)))) ))
+
+(defun dump-display (tty)
   "Actually print the structure to the screen."
-  (declare (special textline-array textline-lengths))
-  (terpri)
-  (loop for i from 0 below (length textline-array)
-        for len = (aref textline-lengths i)
-        for line = (aref textline-array i)
-        while (plusp len)
-        do (format t "~&~A" (subseq line 0 len)))
-  (terpri))
+  (with-slots (textline-array textline-lengths) tty
+    (terpri)
+    (loop for i from 0 below (length textline-array)
+          for len = (aref textline-lengths i)
+          for line = (aref textline-array i)
+          while (plusp len)
+          do (format t "~&~A" (subseq line 0 len)))
+    (terpri)))
+;; (defun draw-structure (directions) 
+;;   (declare (special display-width num-lines))
+;;   (let ((textline-array (make-array num-lines))
+;;         (textline-lengths (make-array num-lines)))
+;;     (declare (special textline-array textline-lengths))
+;;     (dotimes (i (length textline-array))
+;;       (setf (aref textline-array i) 
+;;             (make-string display-width)))
+;;     (fill textline-lengths 0) 
+;;     (follow-directions directions) 
+;;     (dump-display)))
+
+;; (defun follow-directions (dirs &optional is-car) 
+;;   (ecase (car dirs)
+;;     (cons (draw-cons dirs))
+;;     ((atom msg) (draw-msg dirs is-car))))
+
+;; (defun char-blt (row start-col string)
+;;   "Clear out the existing text in ROW up to position START-COL."
+;;   (declare (special textline-array textline-lengths))
+;;   (let ((spos (aref textline-lengths row))
+;;         (line (aref textline-array row))) 
+;;     (fill line #\Space :start spos :end start-col)
+;;     (replace line string :start1 start-col)
+;;     (setf (aref textline-lengths row)
+;;           (+ start-col (length string)))))
+
+;; (defun draw-cons (directions)
+;;   (declare (special textline-array textline-lengths))
+;;   (destructuring-bind (type row col car-component cdr-component) directions
+;;     (declare (ignore type))
+;;     (let ((line (aref textline-array row))
+;;           (h-arrow-start (+ col *cons-cell-flatsize*))
+;;           (h-arrowhead-col (1- (third cdr-component))))
+;;       (char-blt row col *cons-string*) 
+;;       (do ((i h-arrow-start (1+ i)))
+;;           ((>= i h-arrowhead-col))
+;;         (setf (aref line i) *cons-h-arrowshaft-char*))
+;;       (setf (aref line h-arrowhead-col) *cons-h-arrowhead-char*)
+;;       (setf (aref textline-lengths row) (1+ h-arrowhead-col)) 
+;;       (char-blt (+ row 1) (+ col 1) *cons-v-line*)
+;;       (char-blt (+ row 2) (+ col 1) *cons-v-arrowhead*)
+;;       (follow-directions car-component t)
+;;       (follow-directions cdr-component))))
+
+;; (defun draw-msg (directions is-car)
+;;   (destructuring-bind (type row col string) directions
+;;     (declare (ignore type))
+;;   (char-blt row
+;;             (+ col (if (and is-car (<= (length string) *cons-v-arrow-offset-threshold*)) 
+;;                        *cons-v-arrow-offset-value*
+;;                        0))
+;;             string)))
+
+;; (defun dump-display ()
+;;   "Actually print the structure to the screen."
+;;   (declare (special textline-array textline-lengths))
+;;   (terpri)
+;;   (loop for i from 0 below (length textline-array)
+;;         for len = (aref textline-lengths i)
+;;         for line = (aref textline-array i)
+;;         while (plusp len)
+;;         do (format t "~&~A" (subseq line 0 len)))
+;;   (terpri))
