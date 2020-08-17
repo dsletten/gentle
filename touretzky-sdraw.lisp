@@ -197,9 +197,6 @@
 ;;; SCRAWL and subordinate definitions.
 
 (defparameter *scrawl-prompt-string* "SCRAWL> ") 
-;; (defvar *scrawl-object* nil)
-;; (defvar *scrawl-current-obj*)
-;; (defvar *extracting-sequence* nil)
 
 (defun scrawl (obj &key (display-width *sdraw-display-width*))
   "Read-eval-print loop to travel through list"
@@ -249,8 +246,7 @@
   (declare (special scrawl-object scrawl-current-obj extracting-sequence))
   (cond ((null extracting-sequence) (format t "~&Already at beginning of object."))
         (t (pop extracting-sequence) 
-           (setf scrawl-current-obj
-                 (extract-obj extracting-sequence scrawl-object))))
+           (setf scrawl-current-obj (extract-obj extracting-sequence scrawl-object))))
   (display-scrawl-result))
 
 (defun scrawl-start-cmd ()
@@ -259,6 +255,10 @@
         extracting-sequence nil)
   (display-scrawl-result))
 
+;;;
+;;;    SEQ is the EXTRACTING-SEQUENCE, a list of CAR/CDR symbols indicating how the top-level object
+;;;    has been traversed to this point.
+;;;    
 (defun extract-obj (seq obj) 
   (reduce #'funcall seq :initial-value obj :from-end t))
 

@@ -209,8 +209,10 @@
        (case command
          (#\A (scrawl-car-cmd))
          (#\D (scrawl-cdr-cmd))
-         (#\B (scrawl-back-up-cmd)) (#\S (scrawl-start-cmd))
-         (#\H (display-scrawl-help)) (#\Q (return))
+         (#\B (scrawl-back-up-cmd)) 
+         (#\S (scrawl-start-cmd))
+         (#\H (display-scrawl-help))
+         (#\Q (return))
          (t (display-scrawl-error))))))
 
 (defun scrawl-car-cmd ()
