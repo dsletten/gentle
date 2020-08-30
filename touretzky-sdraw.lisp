@@ -206,7 +206,8 @@
         (scrawl-current-obj obj)
         (extracting-sequence nil))
     (declare (special scrawl-object scrawl-current-obj extracting-sequence))
-    (sdraw obj :display-width display-width)
+    (scrawl-start-cmd)
+;    (sdraw obj :display-width display-width)
     (scrawl1)))
 
 (defun scrawl1 ()
@@ -276,7 +277,7 @@
 
 (defun display-scrawl-result ()
   (declare (special display-width scrawl-current-obj))
-  (let* ((*print-pretty* nil)
+  (let* ((*print-pretty* #+cmu t #-cmu nil) ; ???
          (*print-length* nil)
          (*print-level* nil)
          (*print-circle* t)

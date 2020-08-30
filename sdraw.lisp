@@ -257,7 +257,8 @@
 (defun sdl1 ()
   (loop
     (format t "~&~A" *sdraw-loop-prompt-string*)
-    (force-output t)
+    (force-output)
+;    (force-output t)
     (let ((form (read)))
       (setf +++ ++
             ++  +
@@ -315,7 +316,8 @@
 (defun scrawl1 ()
   (loop
     (format t "~&~A" *scrawl-prompt-string*)
-    (force-output t)
+    (force-output)
+;    (force-output t)
     (let ((command (read-uppercase-char)))
       (case command
 	(#\A (scrawl-car-cmd))
