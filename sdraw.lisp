@@ -254,6 +254,12 @@
   (format t "~&Type any Lisp expression, or :ABORT to exit.~%~%")
   (sdl1))
 
+;;;
+;;;    This is fundamentally the same as '89.
+;;;    There are two cosmetic differences:
+;;;    1. If (EVAL FORM) signals an error, this version doesn't handle it -> debugger.
+;;;    2. Entering :ABORT causes the function to simply return rather than invoking (ABORT).
+;;;    
 (defun sdl1 ()
   (loop
     (format t "~&~A" *sdraw-loop-prompt-string*)
@@ -274,6 +280,11 @@
               *   result)
         (display-sdl-result *)))))
 
+;;;
+;;;    The only differences with '89 is that this calls SDRAW first outside of the new bindings
+;;;    of the printer variables...
+;;;    ...and some logic regarding *SDRAW-PRINT-CIRCLE*
+;;;    
 (defun display-sdl-result (result)
   (sdraw result)
   (let* ((*print-circle* (if (boundp '*sdraw-print-circle*)
