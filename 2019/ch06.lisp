@@ -23,7 +23,7 @@
 ;;;;
 ;;;;   Example:
 ;;;;
-;;;;   Notes:
+;;;;   Notes: Continued in 2020!
 ;;;;
 ;;;;
 (load "/home/slytobias/lisp/packages/test.lisp")
@@ -210,6 +210,7 @@
 ;; Shapiro/set.lisp:(defun set-difference (A B) Slightly different: expensive type checks, attempt at tail recursion...
 ;; Touretzky/ch08/tour8.lsp:(defun my-set-difference (a b)             Identical
 ;;~/lisp/programs/set.lisp       Some weird stuff...My solutions below are identical to Winston's!
+;; Touretzky/2020/ch07.lisp Applicative definitions (REMOVE-IF/REMOVE-IF-NOT)
 
 (defun member (obj set &key (test #'eql))
   (cond ((null set) nil)
