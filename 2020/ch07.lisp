@@ -29,7 +29,7 @@
 (ql:quickload "clsql")
 (load "/home/slytobias/lisp/packages/test.lisp")
 
-(defpackage :ch07 (:use :common-lisp :test) (:shadow :set-difference :intersection :union))
+(defpackage :ch07 (:use :common-lisp :test) (:shadow :set-difference :intersection :union :find-if :every))
 
 (in-package :ch07)
 
@@ -85,7 +85,7 @@
    (equal (ssns *employees*) '(123-76-4535 089-52-6787 951-26-1438 355-16-7439))))
 
 ;(clsql-sys:connect '("localhost" "daily_planet" "cl-user" "pung") :database-type :mysql)
-(clsql-sys:reconnect)
+;(clsql-sys:reconnect)
 
 (defun db-ssns ()
   (mapcar #'first (clsql-sys:query "select ssn from employees")))
@@ -115,7 +115,7 @@
 (defun ballpark (l k &optional (epsilon 10))
   (let ((lower (- k epsilon))
         (upper (+ k epsilon)))
-    (find-if #'(lambda (x) (<= lower x upper)) l)))
+    (cl:find-if #'(lambda (x) (<= lower x upper)) l)))
 
 (deftest test-ballpark ()
   (check
@@ -130,11 +130,11 @@
 ;;;    7.9
 ;;;    
 (defun find-nested (l)
-  (find-if #'(lambda (elt) (and (listp elt) (not (null elt)))) l))
+  (cl:find-if #'(lambda (elt) (and (listp elt) (not (null elt)))) l))
 
 ;;;    D'oh! Touretzky:
 (defun find-nested (l)
-  (find-if #'consp l))
+  (cl:find-if #'consp l))
 
 (deftest test-find-nested ()
   (check
@@ -237,3 +237,131 @@
    (validate (intersection '(a b c) '(d e f)) '())
    (validate (intersection '(b c a) '(a d e)) '(a))))
 
+;;;
+;;;    7.17
+;;;    
+(defun total-length (l)
+  (reduce #'+ (mapcar #'length l)))
+
+(defun total-length (l)
+  (reduce #'(lambda (count elt) (+ count (length elt))) l :initial-value 0))
+
+(defun total-length (l)
+  (length (reduce #'append l)))
+
+(deftest test-total-length ()
+  (check
+   (= (total-length '((a) (b c) (d) (e f g))) 7)
+   (= (total-length '()) 0)
+   (= (total-length '(() () () ())) 0)
+   (= (total-length '(() (a) () (c d))) 3)))
+
+;;;
+;;;    7.19 Every element (if any) is odd.
+;;;    
+(defun all-odd (l)
+  (cl:every #'oddp l))
+
+(deftest test-all-odd ()
+  (check
+   (all-odd '(1 3 5 7))
+   (not (all-odd '(1 2 3 4)))
+   (all-odd '())))
+
+;;;
+;;;    7.20 Every element (if any) is not odd.
+;;;    
+(defun none-odd (l)
+  (cl:every #'evenp l))
+
+(defun none-odd (l)
+  (cl:every (complement #'oddp) l))
+
+(defun none-odd (l)
+  (notany #'oddp l))
+
+(deftest test-none-odd ()
+  (check
+   (none-odd '(2 4 6 8))
+   (not (none-odd '(1 2 3 4)))
+   (none-odd '())))
+
+;;;
+;;;    7.21 - Existence claim: returns T if not every element of a list of numbers is odd. Requires at least one even. (?)
+;;;    
+(defun not-all-odd (l)
+  (not (all-odd l)))
+
+;; (defun not-all-odd (l)
+;;   (or (null l) (not (all-odd l))))
+
+;;;
+;;;    Touretzky
+;;;
+(defun not-all-odd (l)
+  (cl:find-if #'evenp l))
+
+(defun not-all-odd (l)
+  (cl:find-if (complement #'oddp) l))
+
+(defun not-all-odd (l)
+  (some (complement #'oddp) l))
+
+(defun not-all-odd (l)
+  (some #'evenp l))
+
+(defun not-all-odd (l)
+  (notevery #'oddp l))
+
+(deftest test-not-all-odd ()
+  (check
+   (not-all-odd '(1 2 3 4))
+   (not-all-odd '(2 4 6 8))
+   (not (not-all-odd '(1 3 5 7)))
+   (not (not-all-odd '()))) )
+
+;;;
+;;;    7.22 - Existence claim: returns T if it is not the case that a list of numbers contains no odd elements. I.e., at least one even.
+;;;    
+(defun not-none-odd (l)
+  (not (none-odd l)))
+
+;;;
+;;;    Touretzky
+;;;
+(defun not-none-odd (l)
+  (cl:find-if #'oddp l))
+
+(defun not-none-odd (l)
+  (some #'oddp l))
+
+(deftest test-not-none-odd ()
+  (check
+   (not-none-odd '(1 2 3 4))
+   (not-none-odd '(1 3 5 7))
+   (not (not-none-odd '(2 4 6 8))) ; Contains no odd elts
+   (not (not-none-odd '()))) ) ; Contains no odd elts
+
+;;;
+;;;    7.26
+;;;    
+(defun find-if (f l)
+  (first (remove-if-not f l)))
+
+(deftest test-find-if ()
+  (check
+   (= (find-if #'evenp '(1 3 5 #1=6 9)) #1#)
+   (= (find-if #'(lambda (elt) (> elt 5)) '(2 4 4.1 4.2 #2=6 8)) #2#)))
+
+;;;
+;;;    7.27
+;;;    
+(defun every (f l)
+  (null (remove-if f l)))
+
+(deftest test-every ()
+  (check
+   (every #'evenp '(2 4 6 8))
+   (not (every #'evenp '(1 2 3 4 5)))
+   (every #'stringp '("Is" "this" "not" "pung?"))
+   (not (every #'numberp '(a b 2 3)))) )
