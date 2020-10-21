@@ -64,7 +64,17 @@
 (defun wildcardp (sym)
   (eq sym '?))
 
+(defun subject (assertion)
+  (first assertion))
+
+(defun property (assertion)
+  (second assertion))
+
+(defun value (assertion)
+  (third assertion))
+
 (defun match-element (target pattern)
+  (assert (not (wildcardp target)))
   (or (eq target pattern)
       (wildcardp pattern)))
 
@@ -75,9 +85,12 @@
    (not (match-element 'red 'blue))))
 
 (defun match-triple (assertion pattern)
-  (cond ((null assertion) (null pattern))
-        ((null pattern) nil)
-        ((match-element (first assertion) (first pattern)) (match-triple (rest assertion) (rest pattern)))
+  (match-tuple assertion pattern 3))
+
+(defun match-tuple (assertion pattern count)
+  (cond ((null assertion) (and (null pattern) (zerop count)))
+        ((or (null pattern) (zerop count)) nil)
+        ((match-element (first assertion) (first pattern)) (match-tuple (rest assertion) (rest pattern) (1- count)))
         (t nil)))
 
 (deftest test-match-triple ()
@@ -86,9 +99,14 @@
    (match-triple '(b2 color red) '(? color red))
    (match-triple '(b2 color red) '(b2 ? red))
    (match-triple '(b2 color red) '(b2 color ?))
+   (not (match-triple '(b2 color) '(b2 color)))
+   (not (match-triple '(b2 color red pung) '(b2 color red foo)))
+   (not (match-triple '(b2 color red) '(b2 color red foo)))
+   (not (match-triple '(b2 color red pung) '(b2 color red)))
+   (not (match-triple '(b2 color red) '(b2 color)))
+   (not (match-triple '(b2 color) '(b2 color red)))
    (not (match-triple '(b2 color red) '(b1 color red)))
-   (not (match-triple '(b2 color red) '(b2 color green)))
-   (not (match-triple '(b2 color red) '(b2 color)))) )
+   (not (match-triple '(b2 color red) '(b2 color green)))) )
 
 (defun fetch (pattern)
   (remove-if-not #'(lambda (assertion) (match-triple assertion pattern)) *database*))
@@ -102,15 +120,6 @@
 (defun block-color-pattern (block)
   `(,block color ?))
 
-(defun subject (assertion)
-  (first assertion))
-
-(defun property (assertion)
-  (second assertion))
-
-(defun value (assertion)
-  (third assertion))
-
 (defun supporters (block)
   (mapcar #'subject (fetch `(? supports ,block))))
 
@@ -123,5 +132,12 @@
              (fetch `(,block ? ?)))
            (desc2 (assertions)
              (mapcar #'rest assertions)))
-    (cons block (apply #'append (desc2 (desc1)))) ))
+    (apply #'append (desc2 (desc1)))) )
+
+(defun description (block)
+  (let* ((assertions (fetch `(,block ? ?)))
+         (properties (mapcar #'rest assertions)))
+    (apply #'append properties)))
+
+
 

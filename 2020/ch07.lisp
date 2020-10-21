@@ -365,3 +365,16 @@
    (not (every #'evenp '(1 2 3 4 5)))
    (every #'stringp '("Is" "this" "not" "pung?"))
    (not (every #'numberp '(a b 2 3)))) )
+
+;;;
+;;;    7.30
+;;;
+(defvar *english-french* '((one un)
+                           (two deux)
+                           (three trois)
+                           (four quatre)
+                           (five cinq)))
+(defvar *spanish* '(uno dos tres quatro cinco))
+(defun trilingual ()
+  (mapcar #'(lambda (eng-fr sp) (append eng-fr (list sp))) *english-french* *spanish*))
+
