@@ -204,6 +204,9 @@
    (equal (make-palindrome '(you and me)) '(you and me me and you))
    (palindromep (make-palindrome '(a b c)))))
 
+;;;
+;;;    Implementations of set operations.
+;;;    
 ;; Graham/ch03/ch03.lisp:(defun stable-set-difference (a b)    ??????
 ;; Little/Lisper/ch08/ch08.lisp:(defun set-difference (set1 set2)      Identical definitions!
 ;; Little/Lisper/2012/little.lisp:(defun set-difference (set1 set2)    Essentiallly identical
@@ -211,6 +214,7 @@
 ;; Touretzky/ch08/tour8.lsp:(defun my-set-difference (a b)             Identical
 ;;~/lisp/programs/set.lisp       Some weird stuff...My solutions below are identical to Winston's!
 ;; Touretzky/2020/ch07.lisp Applicative definitions (REMOVE-IF/REMOVE-IF-NOT)
+;; Touretzky/2020/ch08.lisp INTERSECTION/SET-DIFFERENCE   Identical!
 
 (defun member (obj set &key (test #'eql))
   (cond ((null set) nil)
