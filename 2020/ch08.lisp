@@ -951,3 +951,87 @@
                    (t (do-reverse (rest l) (cons (first l) result)))) ))
     (do-reverse l '())))
 
+;;;
+;;;    8.66
+;;;    
+(defun arith-eval (expr)
+  (cond ((atom expr) expr)
+        (t (funcall (second expr) (arith-eval (first expr)) (arith-eval (third expr)))) ))
+
+(deftest test-arith-eval ()
+  (check
+   (= (arith-eval 8) 8)
+   (= (arith-eval '(3 + 4)) 7)
+   (= (arith-eval '(3 - 4)) -1)
+   (= (arith-eval '(3 * 4)) 12)
+   (= (arith-eval '(3 / 4)) 3/4)
+   (= (arith-eval '(2 + (3 * 4))) 14)
+   (= (arith-eval '((3 + 5) - (8 + 6))) -6)
+   (= (arith-eval '((2 + 2) - (3 * (4 * (12 / 6)))) ) -20)))
+
+;;;
+;;;    8.67
+;;;    
+(defun legalp (expr)
+  (cond ((atom expr) (numberp expr))
+        (t (and (member (second expr) '(+ - * /))
+                (legalp (first expr))
+                (legalp (third expr)))) ))
+
+(defun operatorp (obj)
+  (member obj '(+ - * /)))
+
+(defun legalp (expr)
+  (cond ((atom expr) (numberp expr))
+        (t (handler-case (destructuring-bind (op1 operator op2) expr
+                           (and (operatorp operator)
+                                (legalp op1)
+                                (legalp op2)))
+             (error (e)
+               (declare (ignore e)))) )))
+
+(deftest test-legalp ()
+  (check
+   (legalp 4)
+   (legalp '((2 * 2) - 3))
+   (not (legalp nil))
+   (not (legalp '(a b c d)))
+   (not (legalp '(2 +)))
+   (not (legalp '(2 + (3))))
+   (legalp 8)
+   (legalp '(3 + 4))
+   (legalp '(3 - 4))
+   (legalp '(3 * 4))
+   (legalp '(3 / 4))
+   (legalp '(2 + (3 * 4)))
+   (legalp '((3 + 5) - (8 + 6)))
+   (legalp '((2 + 2) - (3 * (4 * (12 / 6)))) )))
+
+;;;
+;;;    8.70
+;;;    
+(defun factors (n)
+  (labels ((factor (n p)
+             (cond ((= n 1) '())
+                   ((zerop (rem n p)) (cons p (factor (/ n p) p)))
+                   (t (factor n (cl:1+ p)))) ))
+    (factor n 2)))
+
+(defun factor-tree (n)
+  (labels ((factor (n p)
+             (cond ((= n 1) '()) ; Only necessary for initial arg of 1!
+                   ((= n p) n)
+                   (t (multiple-value-bind (q r) (truncate n p)
+                        (if (zerop r)
+                            (list n p (factor q p))
+                            (factor n (cl:1+ p)))) ))))
+    (factor n 2)))
+
+(deftest test-factor-tree ()
+  (check
+   (equal (factor-tree 60) '(60 2 (30 2 (15 3 5))))
+   (equal (factor-tree 7) 7)
+   (equal (factor-tree 9) '(9 3 3))
+   (equal (factor-tree 8) '(8 2 (4 2 2)))
+   (equal (factor-tree 1) NIL)
+   (equal (factor-tree 2) 2)))
