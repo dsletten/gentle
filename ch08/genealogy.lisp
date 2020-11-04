@@ -142,7 +142,7 @@
   (and sibling person (member sibling (siblings person))))
 
 (defun grandparentp (grandparent person)
-  (and grandparent person (member grandparent (grandparent person))))
+  (and grandparent person (member grandparent (grandparents person))))
 
 (defun cousinp (cousin person)
   (and cousin person (member cousin (cousins person))))

@@ -56,6 +56,20 @@
 	(t (all-oddp (rest l)))) )
 
 ;;;
+;;;    Nice try...but doesn't work...
+;;;
+;;; (all-oddp '(2.0 4.0 6.0)) => T
+
+;;;
+;;;    Fixed (201103!)
+;;;    
+(defun all-oddp (l)
+  (cond ((null l) t)
+	((not (integerp (first l))) nil)
+        ((evenp (first l)) nil)
+	(t (all-oddp (rest l)))) )
+
+;;;
 ;;;    8.7
 ;;;
 (defun my-member (elt l)

@@ -226,6 +226,22 @@
 ;;;    Parents of DESCENDANT are limited. Children of ANCESTOR can lead to dead ends...
 ;;;    
 
+;;;
+;;;    This is beautiful from 2002 genealogy.lisp!
+;;;    
+;; (defun descended-from (person ancestor)
+;;   (and person ancestor
+;;        (or (parentp ancestor person)
+;; 	   (descended-from (father person) ancestor)
+;; 	   (descended-from (mother person) ancestor))))
+
+(defun descended-from (descendant ancestor)
+  (cond ((null descendant) nil)
+        ((or (eq ancestor (father descendant))
+             (eq ancestor (mother descendant)) 
+             (descended-from (father descendant) ancestor)
+             (descended-from (mother descendant) ancestor)))) )
+
 (deftest test-descended-from ()
   (check
    (descended-from 'yvette 'arthur)

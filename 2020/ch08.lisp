@@ -226,6 +226,12 @@
 (defun loop-count-down (n)
   (loop for i from n downto 1 collect i))
 
+(defun count-down (n)
+  (labels ((count-it-down (i result)
+             (cond ((> i n) result)
+                   (t (count-it-down (cl:1+ i) (cons i result)))) ))
+    (count-it-down 1 '())))
+
 (deftest test-count-down ()
   (check
    (equal (count-down 0) (loop-count-down 0))
@@ -272,6 +278,12 @@
                    (t (count-down (cl:1+ i) (cl:1- j) (cons i result)))) ))
     (count-down 1 n (list 0))))
 
+(defun count-down-0c (n)
+  (labels ((count-down (i result)
+             (cond ((> i n) result)
+                   (t (count-down (cl:1+ i) (cons i result)))) ))
+    (count-down 0 '())))
+
 (deftest test-count-down-0 ()
   (check
    (all-equal (list (count-down-0a #1=0) (loop-count-down-0 #1#) (count-down-0b #1#) (count-down-0c #1#)))
@@ -301,6 +313,7 @@
 
 ;;;
 ;;;    8.28 (See ex. 8.9 above)
+;;;    The point of this one is to short circuit when the list is empty...
 ;;;    
 (defun nth (n list)
   (cond ((null list) nil)
@@ -339,6 +352,15 @@
 
 (defun sum-numeric-elements-loop (l)
   (loop for elt in l when (numberp elt) sum elt))
+
+;;;
+;;;    Inspired by tour8.lsp
+;;;
+(defun sum-numeric-elements (l)
+  (cond ((null l) 0)
+        (t (typecase (first l)
+             (number (+ (first l) (sum-numeric-elements (rest l))))
+             (t (sum-numeric-elements (rest l)))) )))
 
 (deftest test-sum-numeric-elements ()
   (check
@@ -642,6 +664,13 @@
   (cond ((zerop n) obj)
         (t (list (bury obj (cl:1- n)))) ))
 
+;;;
+;;;    From tour8.lsp (tail recursive)
+;;;    
+(defun bury (obj n)
+  (cond ((zerop n) obj)
+	(t (bury (list obj) (cl:1- n)))) )
+
 (deftest test-bury ()
   (check
    (equal (bury 'fred 0) 'fred)
@@ -832,7 +861,7 @@
 
 (defun right-half (l)
   (labels ((find-right-half (l i sublists)
-             (cond ((null l) (nth (truncate (cl:1- i) 2) sublists))
+             (cond ((null l) (cl:nth (truncate (cl:1- i) 2) sublists))
                    (t (find-right-half (rest l) (cl:1+ i) (cons l sublists)))) ))
     (find-right-half l 0 '())))
 
@@ -888,6 +917,8 @@
 ;;;    8.63
 ;;;    This doesn't really require a separate accumulator other than B.
 ;;;    However, the result set may grow whereas B stays fixed size throughout.
+;;;
+;;;    Note how UNION-AUX and SET-DIFFERENCE-AUX are the same function!
 ;;;    
 (defun union (a b)
   (union-aux a b b))
@@ -998,6 +1029,7 @@
    (not (legalp '(a b c d)))
    (not (legalp '(2 +)))
    (not (legalp '(2 + (3))))
+   (not (legalp '(2 + 3 4)))
    (legalp 8)
    (legalp '(3 + 4))
    (legalp '(3 - 4))
