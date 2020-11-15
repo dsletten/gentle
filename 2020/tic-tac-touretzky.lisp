@@ -117,10 +117,10 @@
           ((board-full-p new-board) (format t "~&Tie game."))
           (t (opponent-move new-board)))) )
 
-(defun choose-best-move (board)
-  (or (make-three-in-a-row board)
-      (block-opponent-win board)
-      (random-move-strategy board)))
+;; (defun choose-best-move (board)
+;;   (or (make-three-in-a-row board)
+;;       (block-opponent-win board)
+;;       (random-move-strategy board)))
 
 (defun random-move-strategy (board)
   (list (pick-random-empty-position board) "random move"))
@@ -152,5 +152,114 @@
            squares))
 
 ;;;
-;;;    Does not contain additional strategies from keyboard exercise pg. 328.
+;;;    Touretzky's additional strategies
 ;;;    
+(defvar *corners* '(1 3 7 9))
+(defvar *sides* '(2 4 6 8))
+
+;; (defun block-squeeze-play (board)
+;;   (sq-and-2 board *computer* *sides* 12 "block squeeze play"))
+
+;; (defun block-two-on-one (board)
+;;   (sq-and-2 board *opponent* *corners* 12 "block two-on-one"))
+
+;; (defun try-squeeze-play (board)
+;;   (sq-and-2 board *opponent* nil 11 "set up a squeeze play"))
+
+;; (defun try-two-on-one (board)
+;;   (sq-and-2 board *computer* nil 11 "set up a two-on-one"))
+
+;;;
+;;;    He refactored this well, but TRY-TWO-ON-ONE is deficient. It
+;;;    requires that the center is occupied rather than considering it a square to occupy.
+;;;    He painted himself into a corner by reducing triplets to sums.
+;;;    He can't distinguish between (10 0 1) and (0 10 1). Consequently, EXPLOIT-TWO-ON-ONE
+;;;    is only invoked if: 1. Computer goes first. 2. Initial move is center (to trigger TRY-TWO-ON-ONE).
+;;;    (And only then if the opponent makes a dumb move! Otherwise BLOCK-OPPONENT-WIN is called.)
+;;;    
+(defun block-squeeze-play (board)
+  (sq-and-2 board *computer* *sides* (+ *computer* *opponent* *opponent*) "block squeeze play"))
+
+(defun block-two-on-one (board)
+  (sq-and-2 board *opponent* *corners* (+ *computer* *opponent* *opponent*) "block two-on-one"))
+
+(defun try-squeeze-play (board)
+  (sq-and-2 board *opponent* nil (+ *computer* *opponent*) "set up a squeeze play"))
+
+(deftest test-try-squeeze-play ()
+  (check
+   (= (first (try-squeeze-play (list 2 10 0 0 0 1 0 0 0 0))) 9)
+   (= (first (try-squeeze-play (list 2 0 0 0 0 1 0 0 0 10))) 1)
+   (= (first (try-squeeze-play (list 2 0 0 10 0 1 0 0 0 0))) 7)
+   (= (first (try-squeeze-play (list 2 0 0 0 0 1 0 10 0 0))) 3)))
+
+(defun try-two-on-one (board)
+  (sq-and-2 board *computer* nil (+ *computer* *opponent*) "set up a two-on-one"))
+
+(deftest test-try-two-on-one ()
+  (check
+   (= (first (try-two-on-one (list 2 1 0 0 0 10 0 0 0 0))) 9)
+   (= (first (try-two-on-one (list 2 0 0 0 0 10 0 0 0 1))) 1)
+   (= (first (try-two-on-one (list 2 0 0 1 0 10 0 0 0 0))) 7)
+   (= (first (try-two-on-one (list 2 0 0 0 0 10 0 1 0 0))) 3)
+;   (= (first (try-two-on-one (list 2 10 0 0 0 0 0 0 0 1))) 5) ; These should all succeed
+;   (= (first (try-two-on-one (list 2 1 0 0 0 0 0 0 0 10))) 5)
+;   (= (first (try-two-on-one (list 2 0 0 10 0 0 0 1 0 0))) 5)
+;   (= (first (try-two-on-one (list 2 0 0 1 0 0 0 10 0 0))) 5)
+   ))
+
+(defun sq-and-2 (board player pool v strategy)
+  (when (equal (nth 5 board) player)
+    (or (sq-helper board 1 9 v strategy pool)
+        (sq-helper board 3 7 v strategy pool))))
+
+(defun sq-helper (board c1 c2 val strategy pool)
+  (when (equal val (sum-triplet board (list c1 5 c2)))
+    (let ((pos (find-empty-position board (or pool (list c1 c2)))) )
+      (and pos (list pos strategy)))) )
+
+;;;
+;;;    Yuck...
+;;;    
+;; (defun exploit-two-on-one (board)
+;;   (when (equal (nth 5 board) *computer*)
+;;     (or (exploit-two board 1 2 4 3 7)
+;;         (exploit-two board 3 2 6 1 9)
+;;         (exploit-two board 7 4 8 1 9)
+;;         (exploit-two board 9 6 8 3 7))))
+
+;; (defun exploit-two (board pos d1 d2 c1 c2)
+;;   (and (equal (sum-triplet board (list c1 5 c2)) (+ *computer* *computer* *opponent*))
+;;        (zerop (nth pos board))
+;;        (zerop (nth d1 board))
+;;        (zerop (nth d2 board))
+;;        (list pos "exploit two-on-one")))
+
+(defun exploit-two-on-one (board)
+  (when (equal (nth 5 board) *computer*)
+    (or (exploit-two board 1 '(2 4 3 7))
+        (exploit-two board 3 '(2 6 1 9))
+        (exploit-two board 7 '(4 8 1 9))
+        (exploit-two board 9 '(6 8 3 7)))) )
+
+(defun exploit-two (board pos cells)
+  (destructuring-bind (d1 d2 c1 c2) cells
+    (and (equal (sum-triplet board (list c1 5 c2)) (+ *computer* *computer* *opponent*))
+         (zerop (nth pos board))
+         (zerop (nth d1 board))
+         (zerop (nth d2 board))
+         (list pos "exploit two-on-one"))))
+
+(defun choose-best-move (board)
+  (or (make-three-in-a-row board)
+      (block-opponent-win board)
+      (block-squeeze-play board)
+      (block-two-on-one board)
+      (exploit-two-on-one board)
+      (try-squeeze-play board)
+      (try-two-on-one board)
+;(take-center board)
+      (random-move-strategy board)))
+
+(defun take-center (board)
+  (if (zerop (nth 5 board)) (list 5 "take center") nil))
