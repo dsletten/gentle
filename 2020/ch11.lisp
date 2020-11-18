@@ -226,10 +226,82 @@
        (pow 1 (* pow 2)))
       ((zerop i) pow)))
 
+(defun power-of-2-touretzky (n)
+  (do ((i 0 (1+ i))
+       (result 1 (+ result result))) ; !!
+      ((= i n) result)))
+
+(defun power (n)
+  (ash 1 n))
+
 (deftest test-power-of-2 ()
   (check
-   (= (power-of-2 0) 1)
-   (= (power-of-2 1) 2)
-   (= (power-of-2 2) 4)
-   (= (power-of-2 8) 256)))
+   (= (power-of-2 0) (power-of-2-touretzky 0) (power 0) 1)
+   (= (power-of-2 1) (power-of-2-touretzky 1) (power 1) 2)
+   (= (power-of-2 2) (power-of-2-touretzky 2) (power 2) 4)
+   (= (power-of-2 8) (power-of-2-touretzky 8) (power 8) 256)))
 
+;;;
+;;;    11.13
+;;;    
+(defun first-non-integer (l)
+  (dolist (elt l 'none)
+    (unless (integerp elt)
+      (return elt))))
+
+(deftest test-first-non-integer ()
+  (check
+   (eq (first-non-integer '()) 'none)
+   (eq (first-non-integer '(2 4 6 8)) 'none)
+   (eq (first-non-integer '(:z :z :z)) :z)
+   (eq (first-non-integer '(2 4 6 gugs 8)) 'gugs)))
+
+;;;
+;;;    11.18
+;;;    
+;; (do ((i 0 (1+ i)))
+;;     ((= i 5) i)
+;;   (format t "~&I = ~D" i))
+
+;;;
+;;;    11.21
+;;;    
+(defun fibonacci (n)
+  (do ((i 0 (1+ i))
+       (f0 0 (+ f0 f1))  ; Why doesn't this order matter??
+       (f1 1 f0))
+      ((= i n) f0)))
+
+;; (loop for i from 0 to 20 collect (fibonacci i))
+;; (0 1 1 2 3 5 8 13 21 34 55 89 144 233 377 610 987 1597 2584 4181 6765)
+
+(defun fibonacci-loop (n)
+  (loop for i upto n
+        for f0 = 0 then f1
+        and f1 = 1 then (+ f0 f1)
+        finally (return f0)))
+
+;;;
+;;;    Clearest!
+;;;    
+(defun fibonacci-tr-stu (n)
+  (labels ((fibonacci-aux (current next i)
+             (cond ((= i n) current)
+                   (t (fibonacci-aux next (+ current next) (1+ i)))) ))
+    (fibonacci-aux 0 1 0)))
+
+(defun fibonacci-touretzky-do* (n)
+  (do* ((i 0 (1+ i))
+        (f0 0 f1)
+        (f1 1 f2)
+        (f2 1 (+ f0 f1)))
+       ((= i n) f0)))
+
+;;;
+;;;    Semantically equivalent to LOOP version.
+;;;    
+(defun fibonacci-touretzky-do (n)
+  (do ((i 0 (1+ i))
+       (f0 0 f1)
+       (f1 1 (+ f0 f1)))
+      ((= i n) f0)))
