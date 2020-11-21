@@ -265,12 +265,36 @@
 
 ;;;
 ;;;    11.21
+;;;    FIBONACCI-A and FIBONACCI-B are equivalent. However, FIBONACCI-A is a
+;;;    little confused. The semantics become clearer by renaming the 2 variables
+;;;    as in FIBONACCI-A1/B1. Here, FIBONACCI-B1 is consistent. At each iteration
+;;;    CURRENT holds the current Fibonacci number and NEXT holds the next in the sequence.
+;;;    On the other hand, while FIBONACCI-A1 computes the correct value, the state of
+;;;    NEXT is misleading. It progresses as 1, 0, 1, 1, 2, ...
 ;;;    
-(defun fibonacci (n)
+(defun fibonacci-a (n)
   (do ((i 0 (1+ i))
-       (f0 0 (+ f0 f1))  ; Why doesn't this order matter??
+       (f0 0 (+ f0 f1))
        (f1 1 f0))
       ((= i n) f0)))
+
+(defun fibonacci-b (n)
+  (do ((i 0 (1+ i))
+       (f0 0 f1)
+       (f1 1 (+ f0 f1)))
+      ((= i n) f0)))
+
+(defun fibonacci-a1 (n)
+  (do ((i 0 (1+ i))
+       (current 0 (+ current next))
+       (next 1 current))
+      ((= i n) current)))
+
+(defun fibonacci-b1 (n)
+  (do ((i 0 (1+ i))
+       (current 0 next)
+       (next 1 (+ current next)))
+      ((= i n) current)))
 
 ;; (loop for i from 0 to 20 collect (fibonacci i))
 ;; (0 1 1 2 3 5 8 13 21 34 55 89 144 233 377 610 987 1597 2584 4181 6765)
@@ -305,3 +329,41 @@
        (f0 0 f1)
        (f1 1 (+ f0 f1)))
       ((= i n) f0)))
+
+(defun fibonacci-shift (n)
+  (let ((current 0)
+        (next 1))
+    (dotimes (i n current)
+      (shiftf current next (+ current next)))) )
+
+;;;
+;;;    TIME experiments
+;;;    
+(defun addup (n)
+  (do ((i 0 (1+ i))
+       (sum 0 (+ sum i)))
+      ((> i n) sum)))
+
+(defun addup-loop (n)
+  (loop for i from 0 to n summing i))
+
+(defun addup-tr (n)
+  (labels ((addup (i sum)
+             (cond ((> i n) sum)
+                   (t (addup (1+ i) (+ sum i)))) ))
+    (addup 0 0)))
+
+(defun addup-pascal (n)
+  (/ (* n (1+ n)) 2))
+
+(deftest test-addup ()
+  (check
+   (= (addup 0) (addup-loop 0) (addup-tr 0) (addup-pascal 0))
+   (= (addup 1) (addup-loop 1) (addup-tr 1) (addup-pascal 1))
+   (= (addup 100) (addup-loop 100) (addup-tr 100) (addup-pascal 100))
+   (= (addup 1000000) (addup-loop 1000000) (addup-tr 1000000) (addup-pascal 1000000))))
+
+;;;
+;;;    The DO version is actually slowest in SBCL. LOOP is fastest then tail recursion!
+;;;    (Of course Pascal kills everybody else!)
+;(dolist (f '(addup addup-loop addup-tr addup-pascal)) (time (funcall f 1000000)))
