@@ -50,12 +50,12 @@
           when (typep no 'answer)
           do (add-to-cache g (text no)))) )
 
-(defun make-game (category net)
-  (make-instance 'game :category category :net net))
-
 (defun add-to-cache (game key)
   (with-slots (cache) game
     (setf (gethash key cache) t)))
+
+(defun make-game (category net)
+  (make-instance 'game :category category :net net))
 
 (defmacro defgame (sym category &rest node-list)
   (let* ((nodes (mapcar #'(lambda (node) 
@@ -126,9 +126,6 @@
   (not-gray "Is it bigger than a person?" bigger-than-person ("a" "monkey"))
   (bigger-than-person "Does it have stripes?" ("a" "tiger") no-stripes)
   (no-stripes "Is it a domestic animal?" ("a" "horse") ("a" "gorilla")))
-
-;; (defnet *animals* "20 Questions Animals"
-;;   (start "Does it purr?" "cat" "elephant"))
 
 ;; (defgame *animals* "Animals"
 ;;   (start "Does it purr?" ("a" "cat") ("an" "elephant")))

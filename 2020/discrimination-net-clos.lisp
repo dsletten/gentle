@@ -98,7 +98,7 @@
 (defmethod process-node ((net discrimination-net) (name symbol))
   (let ((node (find-node net name)))
     (cond ((null node) (format t "Node ~A not yet defined.~%" name))
-          (t (if (yes-or-no-p (format nil "~A " (question node)))
+          (t (if (yes-or-no-p "~A " (question node))
                  (yes-case node)
                  (no-case node)))) ))
 

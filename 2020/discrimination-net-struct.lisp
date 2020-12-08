@@ -56,7 +56,8 @@
 (defun process-node (name)
   (let ((node (find-node name)))
     (cond ((null node) (format t "Node ~A not yet defined.~%" name))
-          (t (if (yes-or-no-p (format nil "~A " (node-question node))) ; !!
+;          (t (if (yes-or-no-p (format nil "~A " (node-question node))) ; D'oh!
+          (t (if (yes-or-no-p "~A " (node-question node))
                  (node-yes-case node)
                  (node-no-case node)))) ))
 ;; (defun run ()

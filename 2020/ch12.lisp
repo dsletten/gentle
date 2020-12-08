@@ -45,7 +45,20 @@
 (defmethod print-object ((ship starship) stream)
   (print-unreadable-object (ship stream :type t)
     (format stream "~A - ~A [~:[☟~;☝~]] ~F ~S" (starship-name ship) 
-            (starship-captain ship) (shields-raised-p ship) (starship-speed ship) (starship-condition ship))))
+            (or (starship-captain ship) "...") (shields-raised-p ship) (starship-speed ship) (starship-condition ship))))
+
+(defstruct captain
+  (name nil :read-only t)
+  (age)
+  (ship nil))
+
+(defmethod print-object ((capt captain) stream)
+  (print-unreadable-object (capt stream :type t)
+    (format stream "~A" (captain-name capt))))
+
+(defun take-command (captain ship)
+  (setf (starship-captain ship) captain
+        (captain-ship captain) ship))
 
 (defun accelerate (starship speed)
   (unless (decommissionedp starship)
@@ -167,7 +180,23 @@
 
 (defmethod print-object ((ship starship) stream)
   (print-unreadable-object (ship stream :type t)
-    (format stream "~A - ~A [~:[☟~;☝~]] ~F ~S" (name ship) (captain ship) (shields-raised-p ship) (speed ship) (condition ship))))
+    (format stream "~A - ~A [~:[☟~;☝~]] ~F ~S" (name ship) (or (captain ship) "...") (shields-raised-p ship) (speed ship) (condition ship))))
+
+(defclass captain ()
+  ((name :reader name :initarg :name)
+   (age :accessor age :initarg :age)
+   (ship :accessor ship :initarg :ship :initform nil)))
+
+(defun make-captain (&key name age ship)
+  (make-instance 'captain :name name :age age :ship ship))
+
+(defmethod print-object ((capt captain) stream)
+  (print-unreadable-object (capt stream :type t)
+    (format stream "~A" (name capt))))
+
+(defun take-command (captain ship)
+  (setf (captain ship) captain
+        (ship captain) ship))
 
 (defun accelerate (starship speed)
   (assert (not (minusp speed)) (speed) "Speed must be non-negative")
