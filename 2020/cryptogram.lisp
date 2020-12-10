@@ -79,19 +79,27 @@
 (defun sub-letter (enc)
   (let ((clr (decode-char enc)))
     (if clr
-        (warn "'~C' has alreaday been deciphered as '~C'!" enc clr)
-        (let* ((clr (char-downcase (char (prompt-read (format nil "What does '~C' decipher to? " enc) :allow-empty nil) 0)))
+        (warn "'~C' has already been deciphered as '~C'!" enc clr)
+        (let* ((clr (char-downcase (read-letter (format nil "What does '~C' decipher to? " enc))))
                (enc* (encode-char clr)))
           (if enc*
               (warn "But '~C' already deciphers to '~C'!" enc* clr)
               (make-substitution clr enc)))) ))
 
 (defun undo-letter ()
-  (let* ((enc (char-downcase (char (prompt-read "Undo which letter? " :allow-empty nil) 0))) ; Check input!
+  (let* ((enc (char-downcase (read-letter "Undo which letter? ")))
          (clr (decode-char enc)))
     (if clr
         (undo-substitution clr enc)
         (warn "'~C' has not been deciphered yet." enc))))
+
+(defun read-letter (prompt)
+  (char (prompt-read prompt
+                     :allow-empty nil
+                     :test #'(lambda (s) 
+                               (and (= (length s) 1) 
+                                    (alpha-char-p (char s 0)))) ) 
+        0))
 
 ;; (defun solvedp (cryptogram)
 ;;   (etypecase cryptogram
@@ -128,7 +136,7 @@
 ;;;
 ;;;    See 2002 version for more examples.
 ;;;    
-;"M cef tj e negb pbzbjgih, ejn gub vqh gttr xb utpfbsezr" "pmnmjv. gueg cef rmjn tw wqj, qjgmi cb pej tqg tw" "kqepgbpf." "--Fqfmb Itqzrf"
+;"M cef tj e negb pbzbjgih, ejn gub vqh gttr xb utpfbsezr" "pmnmjv. Gueg cef rmjn tw wqj, qjgmi cb pej tqg tw" "kqepgbpf." "--Fqfmb Itqzrf"
 ; i was on a date recently, and the guy took me horseback
 ; riding. that was kind of fun, until we ran out of
 ; quarters.--susie loucks
