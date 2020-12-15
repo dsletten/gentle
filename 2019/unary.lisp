@@ -28,7 +28,7 @@
 ;;;;
 (load "/home/slytobias/lisp/packages/test.lisp")
 
-(defpackage :unary (:use :common-lisp :test) (:shadow :1+ :1- :< :> := :+ :- :* :/ :mod :zerop :plusp :evenp :oddp))
+(defpackage :unary (:use :common-lisp :test) (:shadow :number :1+ :1- :< :> := :+ :- :* :/ :mod :zerop :plusp :evenp :oddp))
 
 (in-package :unary)
 
@@ -177,11 +177,11 @@
 (defun * (m n)
   (check-type m unary)
   (check-type n unary)
-  (labels ((** (m n acc)
+  (labels ((** (n acc)
              (if (zerop n)
                  acc
-                 (** m (1- n) (+ acc m)))) )
-    (** m n zero)))
+                 (** (1- n) (+ acc m)))) )
+    (** n zero)))
 
 (deftest test-* ()
   (check
@@ -218,13 +218,13 @@
 (defun / (m n)
   (check-type m unary)
   (check-type n unary)
-  (labels ((// (m n acc)
+  (labels ((// (m acc)
              (if (< m n)
 		 acc
-                 (// (- m n) n (1+ acc)))) )
+                 (// (- m n) (1+ acc)))) )
     (if (zerop n) 
 	(error "Cannot divide by zero.")
-        (// m n zero))))
+        (// m zero))))
 
 (deftest test-/ ()
   (check
