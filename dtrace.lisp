@@ -384,20 +384,27 @@
 ;;; function cell and knows how to take apart lexical closures
 ;;; and compiled code objects found there.
 #+CMU
-(defun fetch-arglist (x &optional original-x)
+(defun fetch-arglist (x &optional original-x) ; Broken for macros...
   (cond ((symbolp x) (fetch-arglist (symbol-function x) x))
-	((compiled-function-p x)
-	 (read-from-string
-	  (lisp::%primitive header-ref x
-			    lisp::%function-arg-names-slot)))
-	((listp x) (case (first x)
-		     (lambda (second x))
-		     (lisp::%lexical-closure% (fetch-arglist (second x)))
-		     (system:macro '(&rest "Form ="))
-		     (t '(&rest "Arglist:"))))
+	((compiled-function-p x) (eval:interpreted-function-arglist x))
 	(t (cerror (format nil "Use a reasonable default argument list for ~S" original-x)
 		   "Unkown object in function cell of ~S:  ~S" original-x x)
 	     '())))
+
+;; (defun fetch-arglist (x &optional original-x)
+;;   (cond ((symbolp x) (fetch-arglist (symbol-function x) x))
+;; 	((compiled-function-p x)
+;; 	 (read-from-string
+;; 	  (lisp::%primitive header-ref x
+;; 			    lisp::%function-arg-names-slot)))
+;; 	((listp x) (case (first x)
+;; 		     (lambda (second x))
+;; 		     (lisp::%lexical-closure% (fetch-arglist (second x)))
+;; 		     (system:macro '(&rest "Form ="))
+;; 		     (t '(&rest "Arglist:"))))
+;; 	(t (cerror (format nil "Use a reasonable default argument list for ~S" original-x)
+;; 		   "Unkown object in function cell of ~S:  ~S" original-x x)
+;; 	     '())))
 
 #+sbcl
 (require :sb-introspect)

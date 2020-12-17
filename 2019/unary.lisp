@@ -28,7 +28,7 @@
 ;;;;
 (load "/home/slytobias/lisp/packages/test.lisp")
 
-(defpackage :unary (:use :common-lisp :test) (:shadow :number :1+ :1- :< :> := :+ :- :* :/ :mod :zerop :plusp :evenp :oddp))
+(defpackage :unary (:use :common-lisp :test) (:shadow :number :1+ :1- :< :> :<= :>= := :+ :- :* :/ :mod :zerop :plusp :evenp :oddp))
 
 (in-package :unary)
 
@@ -118,6 +118,12 @@
         ((zerop m) t)
         (t (< (1- m) (1- n)))) )
 
+;;;
+;;;    From Oz version
+;;;    
+(defun < (m n)
+  (> n m))
+
 (deftest test-< ()
   (check
    (< zero one)
@@ -126,6 +132,46 @@
    (not (< zero zero))
    (not (< one zero))
    (not (< two one))))
+
+;;;
+;;;    m ≤ n <=> !(m > n)
+;;;
+(defun <= (m n)
+  (check-type m unary)
+  (check-type n unary)
+  (cond ((zerop m) t)
+        ((zerop n) nil)
+        (t (<= (1- m) (1- n)))) )
+
+(defun <= (m n)
+  (not (> m n)))
+
+(deftest test-<= ()
+  (check
+   (<= zero one)
+   (<= one two)
+   (<= two (1+ two))
+   (<= zero zero)
+   (not (<= one zero))
+   (not (<= two one))))
+
+(defun >= (m n)
+  (check-type m unary)
+  (check-type n unary)
+  (cond ((zerop n) t)
+        ((zerop m) nil)
+        (t (>= (1- m) (1- n)))) )
+
+(defun >= (m n)
+  (not (< m n)))
+
+(deftest test->= ()
+  (check
+   (>= two one)
+   (>= one zero)
+   (>= one one)
+   (not (>= zero two))
+   (>= (1- two) zero)))
 
 ;;;
 ;;;    m + n = (m + 1) + (n - 1)
