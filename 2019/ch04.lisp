@@ -76,6 +76,9 @@
       (+ x (signum x))))
 
 (defun further (x)
+  (+ x (signum x)))
+
+(defun further (x)
   (if (zerop x)
       x
       (+ x (/ (abs x) x)))) ; Poor man's SIGNUM
