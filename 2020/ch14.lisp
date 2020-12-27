@@ -141,3 +141,11 @@
 ;;                        collect var))))
 
 
+;; (defun hook (expander form env)
+;;   "CLHS *MACROEXPAND-HOOK* example"
+;;   (format t "Now expanding: ~S~%" form)
+;;   (let ((result (funcall expander form env)))
+;;     (format t "Result: ~S~%" result)
+;;     result))
+
+;; (let ((*macroexpand-hook* #'hook)) (eval '(let ((x 2)) (incf x))))

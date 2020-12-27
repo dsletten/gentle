@@ -282,7 +282,7 @@
 ;;;
 (defconstant limit 99)
 ;;
-;;    Broken!
+;;    Broken! (For N > LIMIT)
 ;; (defun cycle (n)
 ;;   (cond ((= n limit) 1)
 ;;         (t (1+ n))))
@@ -314,6 +314,33 @@
    (equal (how-compute 1 2 9) '(beats me))
    (eq (how-compute 2 2 4) 'sum-of) ;????
    (eq (how-compute 0 0 0) 'sum-of))) ;????
+
+(defun how-compute (op1 op2 result)
+  (let ((operations-table '((+ sum-of)
+                            (- difference-of)
+                            (* product-of)
+                            (/ quotient-of)))
+        (operations (remove-if-not #'(lambda (op) (safecall op op1 op2 result)) '(+ - * /))))
+    (if (null operations)
+        '(beats me)
+        (mapcar #'(lambda (op) (second (assoc op operations-table))) operations))))
+
+(defun safecall (op op1 op2 result)
+  (handler-case (= (funcall op op1 op2) result)
+    (error (e)
+      (declare (ignore e))
+      nil)))
+
+(deftest test-how-compute ()
+  (check
+   (equal (how-compute 3 4 7) '(sum-of))
+   (equal (how-compute 3 4 12) '(product-of))
+   (equal (how-compute 9 3 6) '(difference-of))
+   (equal (how-compute 12 3 4) '(quotient-of))
+   (equal (how-compute 4 2 2) '(difference-of quotient-of))
+   (equal (how-compute 1 2 9) '(beats me))
+   (equal (how-compute 2 2 4) '(sum-of product-of))
+   (equal (how-compute 0 0 0) '(sum-of difference-of product-of))))
 
 ;;;
 ;;;    4.15
