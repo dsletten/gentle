@@ -33,28 +33,6 @@
 (in-package :ch14)
 
 ;;;
-;;;    INCF must be a macro not a function.
-;;;    
-(defun faulty-incf (var)
-  (setq var (+ var 1))) ; Simply modifies variable local to function. No effect once function returns.
-
-(faulty-incf 4)
-(let ((i 2))
-  (faulty-incf i) i)
-
-;;;
-;;;    Sort of possible with special variables.
-;;;    Parameter VAR is the name of some other variable.
-;;;    
-(defun dynamic-incf (var &optional (delta 1))
-  (setf (symbol-value var) (+ (symbol-value var) delta)))
-
-(let ((i 2)) 
-  (declare (special i))
-  (dynamic-incf 'i)
-  i)
-
-;;;
 ;;;    14.3
 ;;;    
 (defmacro set-nil (var)
@@ -96,6 +74,12 @@
 ;; * 
 
 ;;;
+;;;   Old version
+;;;
+(defmacro rotatef (a b)
+  `(psetq ,a ,b ,b ,a))
+
+;;;
 ;;;    14.5
 ;;;    
 (defmacro set-mutual (a b)
@@ -111,14 +95,20 @@
   `(progn (setf ,@(loop for var in vars collect var collect 0))
      '(zeroed ,@vars)))
 
+(deftest test-set-zero ()
+  (check
+   (equal (macroexpand-1 '(set-zero a)) '(progn (setf a 0) '(zeroed a)))
+   (equal (macroexpand-1 '(set-zero a b)) '(progn (setf a 0 b 0) '(zeroed a b)))
+   (equal (macroexpand-1 '(set-zero a b c)) '(progn (setf a 0 b 0 c 0) '(zeroed a b c)))))
+   
 ;;;
 ;;;    Touretzky's version
 ;;;
-(defmacro set-zero (&rest variables)
+(defmacro set-zero-touretzky (&rest variables)
   `(progn ,@(mapcar #'(lambda (var) (list 'setf var 0)) variables)
      '(zeroed ,@variables)))
 
-(defmacro set-zero (&rest variables)
+(defmacro set-zero-touretzky (&rest variables)
   `(progn ,@(mapcar #'(lambda (var) `(setf ,var 0)) variables)
      '(zeroed ,@variables)))
 
@@ -131,7 +121,11 @@
                  collect var
                  collect `',val)))
 
-;(macroexpand-1 '(variable-chain a b c d)) => (SETF A 'B B 'C C 'D)
+(deftest test-variable-chain ()
+  (check
+   (equal (macroexpand-1 '(variable-chain a b)) '(SETF A 'B))
+   (equal (macroexpand-1 '(variable-chain a b c)) '(SETF A 'B B 'C))
+   (equal (macroexpand-1 '(variable-chain a b c d)) '(SETF A 'B B 'C C 'D))))
 
 ;; (defmacro variable-chain (&rest vars)
 ;;   `(setf ,@(cons (first vars)
@@ -149,3 +143,75 @@
 ;;     result))
 
 ;; (let ((*macroexpand-hook* #'hook)) (eval '(let ((x 2)) (incf x))))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;    INCF must be a macro not a function. (pg. 410)
+;;;    
+(defun faulty-incf (var)
+  (setq var (+ var 1))) ; Simply modifies variable local to function. No effect once function returns.
+
+(faulty-incf 4)
+(let ((i 2))
+  (faulty-incf i)
+  i)
+
+;;;
+;;;    Sort of possible with special variables.
+;;;    Parameter VAR is the name of some other variable.
+;;;    
+(defun dynamic-incf (var &optional (delta 1))
+  (setf (symbol-value var) (+ (symbol-value var) delta)))
+
+(let ((i 2)) 
+  (declare (special i))
+  (dynamic-incf 'i)
+  i)
+
+;;;
+;;;    Backquote variant (pg. 412)
+;;;
+(defmacro simple-incf (var &optional (amount 1))
+  `(setq ,var (+ ,var ,amount)))
+
+(let ((i 2))
+  (simple-incf i)
+  i)
+
+;;;
+;;;    Touretzky's amended FAULTY-INCF is essentially my DYNAMIC-INCF above. (pg. 433)
+;;;
+(defun faulty-incf (var)
+  (set var (+ (symbol-value var) 1)))
+
+(defun test-simple (turnip)
+  (simple-incf turnip))
+
+(defun test-faulty (turnip)
+  (faulty-incf 'turnip))
+
+(defun test-dynamic (turnip)
+  (declare (special turnip))
+  (faulty-incf 'turnip))
+
+;;;
+;;;    Touretzky's lexical/dynamic test isn't really correct.
+;;;    No such thing as "global lexical" variable...
+;;;
+;;;    I guess this is the closest thing:
+;;;
+(let ((birds '(eagle vulture))
+      (fish '(salmon tuna)))
+  (declare (special birds))
+  (defun ref-fish () fish)
+  (defun ref-birds ()
+    (declare (special birds))
+    birds))
+
+(defun lexical-test (fish)
+  (list fish (ref-fish)))
+
+(defun dynamic-test (birds)
+  (declare (special birds))
+  (list birds (ref-birds)))
