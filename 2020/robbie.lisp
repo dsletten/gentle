@@ -96,7 +96,7 @@
                (otherwise (illegal-move))))
            (pantry ()
              (case direction
-               (:north :kitcen)
+               (:north :kitchen)
                (:west :dining-room)
                (otherwise (illegal-move))))
            (illegal-move ()

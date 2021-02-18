@@ -261,11 +261,8 @@
     (when (eq terminal (first states))
       (return))))
 
-;;;
-;;;    Fix this in :lang!!
-;;;    
 (defmacro defchain (var vals)
-  (let ((chain (mapcar #'(lambda (key val) (list key (list 'quote val))) vals (append (rest vals) (list (first vals)))) ))
+  (let ((chain (mapcar #'(lambda (key val) `(,key ',val)) vals (append (rest vals) (list (first vals)))) ))
     `(case ,var ,@chain)))
 
 (defun nerdus (state)
