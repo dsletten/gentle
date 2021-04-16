@@ -136,17 +136,8 @@
         '()
         (move-options rule))))
 
-(defun random-move (moves)
-  (elt moves (random (length moves))))
-
-(defun random-walk (count start moves)
-  (loop repeat count
-        for location = start then new-location
-        for (direction new-location) = (random-move (options start moves)) then (random-move (options location moves))
-        do (format t "Robbie's location: ~A heading ~A~%" location direction)
-        finally (format t "Robbie stops: ~A~%" new-location)))
-
 (defun move-robbie (location rules moves)
+  "Move Robbie from LOCATION according to MOVES along a path defined by RULES."
   (cond ((endp moves) location)
         (t (destructuring-bind (move . more) moves
              (let ((options (options location rules)))
@@ -156,10 +147,6 @@
                      (if (null option)
                          (warn "Robbie cannot move ~A from ~A." move location)
                          (move-robbie (second option) rules more)))) )))) )
-
-(defun execute-move (location direction rules)
-  (let ((options (options location rules)))
-    (second (assoc direction options))))
 
 ;;;
 ;;;   Look for cycles??
@@ -178,6 +165,16 @@
 ;;                       (find-path-aux (second move) (list (first move)))
 ;;                       rules)))) )
 
+(defun random-move (moves)
+  (elt moves (random (length moves))))
+
+(defun random-walk (count start moves)
+  (loop repeat count
+        for location = start then new-location
+        for (direction new-location) = (random-move (options start moves)) then (random-move (options location moves))
+        do (format t "Robbie's location: ~A heading ~A~%" location direction)
+        finally (format t "Robbie stops: ~A~%" new-location)))
+
 (defun find-forward-move (previous-move options)
   (let ((forward-moves (remove-if #'(lambda (option) (eq (first option) (opposite previous-move))) options)))
     (first (random-move forward-moves))))
@@ -189,29 +186,51 @@
     (east 'west)
     (west 'east)))
 
+;; ??? Path is sequence of locations
+;; ??? Moves are the directions that are followed...
+
 (defun find-path (start finish rules)
-  (let ((path (list start)))
-    (labels ((find-path-aux (location moves)
-               (push location path)
-               (if (eq location finish)
-                   (nreverse moves)
-                   (let* ((options (options location rules))
-                          (next-move (find-acyclic-move path options)))
-                     (if (null next-move)
-                         (nreverse moves)
-                         (find-path-aux (second (assoc next-move options)) (cons next-move moves)))) )))
-      (if (eq start finish)
-          '()
-          (let ((move (random-move (options start rules))))
-            (trace-path start 
-                        (find-path-aux (second move) (list (first move)))
-                        rules)))) ))
+  (labels ((find-path-aux (location moves path)
+             (if (eq location finish)
+                 (nreverse moves)
+                 (let* ((options (options location rules))
+                        (new-path (cons location path))
+                        (next-move (find-acyclic-move new-path options)))
+                   (if (null next-move)
+                       (nreverse moves)
+                       (find-path-aux (second (assoc next-move options)) (cons next-move moves) new-path)))) ))
+    (if (eq start finish)
+        '()
+        (destructuring-bind (direction destination) (random-move (options start rules))
+          (trace-path start (find-path-aux destination (list direction) (list start)) rules)))) )
+
+;; (defun find-path (start finish rules)
+;;   (let ((path (list start)))
+;;     (labels ((find-path-aux (location moves)
+;;                (push location path)
+;;                (if (eq location finish)
+;;                    (nreverse moves)
+;;                    (let* ((options (options location rules))
+;;                           (next-move (find-acyclic-move path options)))
+;;                      (if (null next-move)
+;;                          (nreverse moves)
+;;                          (find-path-aux (second (assoc next-move options)) (cons next-move moves)))) )))
+;;       (if (eq start finish)
+;;           '()
+;;           (let ((move (random-move (options start rules))))
+;;             (trace-path start 
+;;                         (find-path-aux (second move) (list (first move)))
+;;                         rules)))) ))
 
 (defun find-acyclic-move (path options)
   (let ((acyclic-moves (remove-if #'(lambda (option) (member (second option) path)) options)))
     (if (null acyclic-moves)
         (format t "Robbie got stuck: ~A~%" path)
         (first (random-move acyclic-moves)))) )
+
+(defun execute-move (location direction rules)
+  (let ((options (options location rules)))
+    (second (assoc direction options))))
 
 (defun trace-path (start path rules)
   (cons start (loop for move in path
